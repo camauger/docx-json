@@ -6,16 +6,26 @@ Modèle de données pour les éléments du document.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional, Union
 
 
 @dataclass
 class TextRun:
     """Représente un morceau de texte avec style."""
+
     text: str
     bold: bool = False
     italic: bool = False
     underline: bool = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convertit en dictionnaire."""
+        return {
+            "text": self.text,
+            "bold": self.bold,
+            "italic": self.italic,
+            "underline": self.underline,
+        }
 
 
 class DocumentElement:
@@ -23,8 +33,8 @@ class DocumentElement:
 
     def __init__(self, element_type: str):
         self._type = element_type
-        self._html_class = None
-        self._html_id = None
+        self._html_class = ""
+        self._html_id = ""
 
     @property
     def type(self) -> str:
@@ -32,7 +42,7 @@ class DocumentElement:
         return self._type
 
     @property
-    def html_class(self) -> Optional[str]:
+    def html_class(self) -> str:
         """Classe CSS à appliquer en HTML."""
         return self._html_class
 
@@ -41,7 +51,7 @@ class DocumentElement:
         self._html_class = value
 
     @property
-    def html_id(self) -> Optional[str]:
+    def html_id(self) -> str:
         """ID HTML à appliquer."""
         return self._html_id
 
@@ -51,13 +61,13 @@ class DocumentElement:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convertit l'élément en dictionnaire pour le JSON."""
-        result = {"type": self._type}
+        result = {"type": self.type}
 
-        if self._html_class:
-            result["html_class"] = self._html_class
+        if self.html_class:
+            result["html_class"] = self.html_class
 
-        if self._html_id:
-            result["html_id"] = self._html_id
+        if self.html_id:
+            result["html_id"] = self.html_id
 
         return result
 
@@ -65,6 +75,7 @@ class DocumentElement:
 @dataclass
 class Paragraph(DocumentElement):
     """Représente un paragraphe dans le document."""
+
     runs: List[TextRun] = field(default_factory=list)
 
     def __init__(self):
@@ -83,7 +94,7 @@ class Paragraph(DocumentElement):
                 "text": run.text,
                 "bold": run.bold,
                 "italic": run.italic,
-                "underline": run.underline
+                "underline": run.underline,
             }
             for run in self.runs
         ]
@@ -93,6 +104,7 @@ class Paragraph(DocumentElement):
 @dataclass
 class Heading(DocumentElement):
     """Représente un titre dans le document."""
+
     level: int
     runs: List[TextRun] = field(default_factory=list)
 
@@ -114,7 +126,7 @@ class Heading(DocumentElement):
                 "text": run.text,
                 "bold": run.bold,
                 "italic": run.italic,
-                "underline": run.underline
+                "underline": run.underline,
             }
             for run in self.runs
         ]
@@ -124,6 +136,7 @@ class Heading(DocumentElement):
 @dataclass
 class ListItem(DocumentElement):
     """Représente un élément de liste dans le document."""
+
     runs: List[TextRun] = field(default_factory=list)
 
     def __init__(self):
@@ -142,7 +155,7 @@ class ListItem(DocumentElement):
                 "text": run.text,
                 "bold": run.bold,
                 "italic": run.italic,
-                "underline": run.underline
+                "underline": run.underline,
             }
             for run in self.runs
         ]
@@ -152,6 +165,7 @@ class ListItem(DocumentElement):
 @dataclass
 class Image(DocumentElement):
     """Représente une image dans le document."""
+
     rId: Optional[str] = None
     image_path: Optional[str] = None
     alt_text: str = "Image"
@@ -177,6 +191,7 @@ class Image(DocumentElement):
 @dataclass
 class Table(DocumentElement):
     """Représente un tableau dans le document."""
+
     rows: List[List[List[DocumentElement]]] = field(default_factory=list)
 
     def __init__(self):
@@ -193,10 +208,7 @@ class Table(DocumentElement):
 
         # Convertir récursivement tous les éléments en dictionnaires
         result["rows"] = [
-            [
-                [element.to_dict() for element in cell]
-                for cell in row
-            ]
+            [[element.to_dict() for element in cell] for cell in row]
             for row in self.rows
         ]
 
@@ -206,6 +218,7 @@ class Table(DocumentElement):
 @dataclass
 class ComponentMarker(DocumentElement):
     """Représente un marqueur de composant éducatif."""
+
     component_type: str
 
     def __init__(self, component_type: str):
@@ -222,6 +235,7 @@ class ComponentMarker(DocumentElement):
 @dataclass
 class ComponentEnd(DocumentElement):
     """Représente un marqueur de fin de composant éducatif."""
+
     component_type: str
 
     def __init__(self, component_type: str):
@@ -238,6 +252,7 @@ class ComponentEnd(DocumentElement):
 @dataclass
 class Component(DocumentElement):
     """Représente un composant éducatif complet."""
+
     component_type: str
     content: List[DocumentElement] = field(default_factory=list)
 
@@ -261,6 +276,7 @@ class Component(DocumentElement):
 @dataclass
 class Block(DocumentElement):
     """Représente un bloc formaté (citation, encadré, etc.)."""
+
     block_type: str
     content: List[DocumentElement] = field(default_factory=list)
 
@@ -284,6 +300,7 @@ class Block(DocumentElement):
 @dataclass
 class Instruction(DocumentElement):
     """Représente une instruction de formatage."""
+
     content: str
 
     def __init__(self, content: str):
@@ -300,6 +317,7 @@ class Instruction(DocumentElement):
 @dataclass
 class RawHTML(DocumentElement):
     """Représente du code HTML brut à insérer."""
+
     content: str
 
     def __init__(self, content: str):
