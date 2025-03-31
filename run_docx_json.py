@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-Script de lancement pour le convertisseur DOCX → JSON/HTML
+Script de lancement pour le convertisseur DOCX -> JSON/HTML (ancienne API)
 """
 
-import sys
 from docx_json.convert import main
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

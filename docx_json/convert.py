@@ -3,443 +3,27 @@
 
 """
 Module principal pour la conversion de fichiers DOCX en JSON/HTML
+Ce module fournit une compatibilité avec l'ancienne API tout en utilisant
+la nouvelle implémentation orientée objet.
 """
 
-import base64
 import json
 import logging
 import os
-import re
 import sys
-from typing import IO, Any, Dict, List, Optional, Union
-
-from docx import Document
-from docx.oxml.table import CT_Tbl
-from docx.oxml.text.paragraph import CT_P
-from docx.table import Table
-from docx.text.paragraph import Paragraph
-
-
-# Configuration du logging
-def setup_logging(verbose: bool = False) -> None:
-    """Configure le système de logging.
-
-    Args:
-        verbose: Si True, affiche les messages de debug
-    """
-    level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-
-
-def extract_images(document: Any) -> Dict[str, str]:
-    """
-    Extrait les images du document .docx et les encode en base64
-
-    Args:
-        document: L'objet Document de python-docx
-
-    Returns:
-        Un dictionnaire {nom_image: données_base64}
-    """
-    images = {}
-    rels = document.part.rels
-
-    for rel in rels.values():
-        if "image" in rel.target_ref:
-            # Obtenir le nom de l'image depuis le chemin
-            image_name = os.path.basename(rel.target_ref)
-
-            # Récupérer les données binaires
-            image_data = rel.target_part.blob
-
-            # Encoder en base64
-            encoded_image = base64.b64encode(image_data).decode("utf-8")
-
-            # Stocker dans le dictionnaire
-            images[image_name] = encoded_image
-            logging.debug(f"Image extraite: {image_name}")
-
-    return images
-
-
-def get_paragraph_json(paragraph: Paragraph) -> Dict[str, Any]:
-    """
-    Convertit un paragraphe en structure JSON
-
-    Args:
-        paragraph: L'objet Paragraph de python-docx
-
-    Returns:
-        Un dictionnaire représentant le paragraphe
-    """
-    # Déterminer le type (paragraphe normal, titre, etc.)
-    para_type = "paragraph"
-
-    style_name = paragraph.style.name if paragraph.style else ""
-    level = 0
-
-    # Détecter si c'est un titre (Heading)
-    if style_name and style_name.startswith("Heading"):
-        para_type = "heading"
-        level = int(style_name.split(" ")[1]) if len(style_name.split(" ")) > 1 else 1
-
-    # Vérifier si c'est un élément de liste
-    if paragraph.paragraph_format.left_indent:
-        para_type = "list_item"
-
-    # Extraire les runs (morceaux de texte avec style)
-    runs = []
-    for run in paragraph.runs:
-        run_info = {
-            "text": run.text,
-            "bold": bool(run.bold),
-            "italic": bool(run.italic),
-            "underline": bool(run.underline),
-        }
-        runs.append(run_info)
-
-    # Vérifier si c'est une instruction intégrée (commençant par ":::")
-    text = paragraph.text.strip()
-    if text.startswith(":::"):
-        return {
-            "type": "instruction",
-            "content": text[3:].strip(),  # Retirer les ":::" du début
-        }
-
-    # Structure de base du JSON pour un paragraphe
-    para_json = {
-        "type": para_type,
-        "runs": runs,
-    }
-
-    # Ajouter le niveau si c'est un titre
-    if para_type == "heading":
-        para_json["level"] = level
-
-    return para_json
-
-
-def get_table_json(table: Table) -> Dict[str, Any]:
-    """
-    Convertit une table en structure JSON
-
-    Args:
-        table: L'objet Table de python-docx
-
-    Returns:
-        Un dictionnaire représentant la table
-    """
-    rows = []
-    for row in table.rows:
-        cells = []
-        for cell in row.cells:
-            # Une cellule peut contenir plusieurs paragraphes
-            cell_content = []
-            for paragraph in cell.paragraphs:
-                para_json = get_paragraph_json(paragraph)
-                # Ignorer les instructions dans les cellules
-                if para_json["type"] != "instruction":
-                    cell_content.append(para_json)
-            cells.append(cell_content)
-        rows.append(cells)
-
-    return {"type": "table", "rows": rows}
-
-
-def process_instructions(elements: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Traite les instructions intégrées et les applique aux éléments suivants
-
-    Args:
-        elements: Liste des éléments JSON du document
-
-    Returns:
-        Liste des éléments modifiés selon les instructions
-    """
-    result = []
-    current_block = None
-    skip_next = False
-
-    # Classes et ID à appliquer au prochain élément
-    pending_classes = []
-    pending_id = None
-
-    for i, element in enumerate(elements):
-        # Si on doit ignorer cet élément (suite à une instruction "ignore")
-        if skip_next:
-            skip_next = False
-            continue
-
-        if element["type"] == "instruction":
-            instruction = element["content"].strip()
-            logging.debug(f"Traitement de l'instruction: {instruction}")
-
-            # Instruction classe CSS
-            if instruction.startswith("class "):
-                class_names = instruction[6:].strip()
-                pending_classes.extend(class_names.split())
-
-            # Instruction ID
-            elif instruction.startswith("id "):
-                pending_id = instruction[3:].strip()
-
-            # Instruction ignore
-            elif instruction == "ignore":
-                skip_next = True
-
-            # Instruction bloc (pour wrapper des éléments)
-            elif " start" in instruction:
-                block_type = instruction.split()[0]
-                current_block = {
-                    "type": "block",
-                    "block_type": block_type,
-                    "content": [],
-                }
-
-            # Fin d'un bloc
-            elif " end" in instruction:
-                if current_block:
-                    result.append(current_block)
-                    current_block = None
-
-            # Instruction HTML brut
-            elif instruction.startswith("html "):
-                html_content = instruction[5:].strip()
-                result.append({"type": "raw_html", "content": html_content})
-
-        else:
-            # Appliquer les classes et ID en attente
-            if pending_classes:
-                element["html_class"] = " ".join(pending_classes)
-                pending_classes = []
-
-            if pending_id:
-                element["html_id"] = pending_id
-                pending_id = None
-
-            # Ajouter l'élément au bloc courant ou aux résultats
-            if current_block:
-                current_block["content"].append(element)
-            else:
-                result.append(element)
-
-    # Ajouter le dernier bloc s'il existe encore
-    if current_block:
-        result.append(current_block)
-        logging.warning("Un bloc n'a pas été fermé dans le document.")
-
-    return result
-
-
-def get_document_json(docx_path: str) -> Dict[str, Any]:
-    """
-    Convertit un document .docx complet en structure JSON
-
-    Args:
-        docx_path: Chemin vers le fichier .docx
-
-    Returns:
-        Un dictionnaire représentant le document
-    """
-    logging.info(f"Chargement du document: {docx_path}")
-    document = Document(docx_path)
-
-    # Extraire les images
-    logging.info("Extraction des images...")
-    images = extract_images(document)
-
-    # Extraire le contenu en respectant l'ordre
-    logging.info("Extraction du contenu...")
-    elements = []
-
-    # S'assurer que document a un élément body valide
-    if hasattr(document, "element") and hasattr(document.element, "body"):
-        body = document.element.body
-
-        # Parcourir les éléments du corps du document (paragraphes et tables)
-        for child in body.iterchildren():
-            if isinstance(child, CT_P):
-                paragraph = Paragraph(child, document)
-                para_json = get_paragraph_json(paragraph)
-                elements.append(para_json)
-            elif isinstance(child, CT_Tbl):
-                table = Table(child, document)
-                table_json = get_table_json(table)
-                elements.append(table_json)
-    else:
-        logging.error("Le document n'a pas de corps valide")
-        return {
-            "meta": {
-                "title": os.path.basename(docx_path),
-                "error": "Structure de document invalide",
-            },
-            "content": [],
-            "images": {},
-        }
-
-    # Traiter les instructions intégrées
-    logging.info("Traitement des instructions...")
-    processed_elements = process_instructions(elements)
-
-    # Créer la structure JSON complète
-    file_name = os.path.basename(docx_path)
-    result = {
-        "meta": {"title": file_name},
-        "content": processed_elements,
-        "images": images,
-    }
-
-    return result
-
-
-def generate_html(json_data: Dict[str, Any]) -> str:
-    """
-    Génère un document HTML à partir de la structure JSON
-
-    Args:
-        json_data: Dictionnaire représentant le document
-
-    Returns:
-        Une chaîne de caractères contenant le HTML
-    """
-    logging.info("Génération du HTML...")
-    html = [
-        "<!DOCTYPE html>",
-        '<html lang="fr">',
-        "<head>",
-        f'<title>{json_data["meta"]["title"]}</title>',
-        '<meta charset="UTF-8">',
-        '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
-        '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">',
-        "</head>",
-        "<body>",
-        '<div class="container">',
-    ]
-
-    # Fonction récursive pour générer le HTML des éléments
-    def generate_element_html(element: Dict[str, Any]) -> List[str]:
-        element_html = []
-
-        if element["type"] == "paragraph":
-            attrs = []
-            if "html_class" in element:
-                attrs.append(f'class="{element["html_class"]}"')
-            if "html_id" in element:
-                attrs.append(f'id="{element["html_id"]}"')
-
-            attrs_str = " ".join(attrs)
-            attrs_str = f" {attrs_str}" if attrs_str else ""
-
-            element_html.append(f"<p{attrs_str}>")
-            for run in element["runs"]:
-                text = run["text"]
-                if run["bold"]:
-                    text = f"<strong>{text}</strong>"
-                if run["italic"]:
-                    text = f"<em>{text}</em>"
-                if run["underline"]:
-                    text = f"<u>{text}</u>"
-                element_html.append(text)
-            element_html.append("</p>")
-
-        elif element["type"] == "heading":
-            attrs = []
-            if "html_class" in element:
-                attrs.append(f'class="{element["html_class"]}"')
-            if "html_id" in element:
-                attrs.append(f'id="{element["html_id"]}"')
-
-            attrs_str = " ".join(attrs)
-            attrs_str = f" {attrs_str}" if attrs_str else ""
-
-            level = element["level"]
-            element_html.append(f"<h{level}{attrs_str}>")
-            for run in element["runs"]:
-                text = run["text"]
-                if run["bold"]:
-                    text = f"<strong>{text}</strong>"
-                if run["italic"]:
-                    text = f"<em>{text}</em>"
-                if run["underline"]:
-                    text = f"<u>{text}</u>"
-                element_html.append(text)
-            element_html.append(f"</h{level}>")
-
-        elif element["type"] == "list_item":
-            # Note: ceci est simplifié et ne gère pas les listes imbriquées correctement
-            element_html.append("<li>")
-            for run in element["runs"]:
-                text = run["text"]
-                if run["bold"]:
-                    text = f"<strong>{text}</strong>"
-                if run["italic"]:
-                    text = f"<em>{text}</em>"
-                if run["underline"]:
-                    text = f"<u>{text}</u>"
-                element_html.append(text)
-            element_html.append("</li>")
-
-        elif element["type"] == "table":
-            element_html.append('<table class="table table-bordered">')
-            for row in element["rows"]:
-                element_html.append("<tr>")
-                for cell in row:
-                    element_html.append("<td>")
-                    for para in cell:
-                        element_html.extend(generate_element_html(para))
-                    element_html.append("</td>")
-                element_html.append("</tr>")
-            element_html.append("</table>")
-
-        elif element["type"] == "raw_html":
-            element_html.append(element["content"])
-
-        elif element["type"] == "block":
-            block_type = element["block_type"]
-            if block_type == "quote":
-                element_html.append('<blockquote class="blockquote">')
-                for content_elem in element["content"]:
-                    element_html.extend(generate_element_html(content_elem))
-                element_html.append("</blockquote>")
-            elif block_type == "aside":
-                element_html.append('<aside class="border p-3 my-3">')
-                for content_elem in element["content"]:
-                    element_html.extend(generate_element_html(content_elem))
-                element_html.append("</aside>")
-            # Ajoutez d'autres types de blocs au besoin
-
-        elif element["type"] == "image" and "image_path" in element:
-            img_path = element["image_path"]
-            img_alt = element.get("alt_text", "Image")
-            element_html.append(
-                f'<img src="{img_path}" alt="{img_alt}" class="img-fluid my-3" />'
-            )
-
-        return element_html
-
-    # Générer le HTML pour chaque élément
-    for element in json_data["content"]:
-        html.extend(generate_element_html(element))
-
-    # Ajouter les images à la fin (si elles sont en base64)
-    for img_name, img_data in json_data["images"].items():
-        # Vérifier si c'est une donnée base64 ou un chemin d'image
-        if not img_data.startswith("images/"):
-            img_tag = f'<img src="data:image/png;base64,{img_data}" alt="{img_name}" class="img-fluid my-3" />'
-            html.append(img_tag)
-
-    html.append("</div>")  # Fermer le container
-    html.append(
-        '<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>'
-    )
-    html.append("</body>")
-    html.append("</html>")
-
-    return "\n".join(html)
+from typing import Any, Dict, List, Optional
+
+# Importer les fonctions de compatibilité
+from docx_json.core.compatibility import (
+    create_element_from_dict,
+    extract_images,
+    generate_html,
+    get_document_json,
+    get_paragraph_json,
+    get_table_json,
+    process_instructions,
+)
+from docx_json.utils.logging import setup_logging
 
 
 def parse_args() -> Dict[str, Any]:
@@ -453,8 +37,8 @@ def parse_args() -> Dict[str, Any]:
         "docx_path": None,
         "generate_json": False,
         "generate_html": False,
+        "save_images": True,  # Par défaut, les images sont sauvegardées
         "verbose": False,
-        "save_images_to_disk": True,  # Par défaut, sauvegarder les images sur disque
     }
 
     if len(sys.argv) < 2 or "--help" in sys.argv or "-h" in sys.argv:
@@ -479,7 +63,7 @@ def parse_args() -> Dict[str, Any]:
     args["generate_json"] = "--json" in sys.argv
     args["generate_html"] = "--html" in sys.argv
     args["verbose"] = "--verbose" in sys.argv
-    args["save_images_to_disk"] = "--no-save-images" not in sys.argv
+    args["save_images"] = "--no-save-images" not in sys.argv
 
     return args
 
@@ -498,7 +82,7 @@ def main() -> None:
     docx_path = args["docx_path"]
     generate_json = args["generate_json"]
     generate_html_output = args["generate_html"]
-    save_images_to_disk = args["save_images_to_disk"]
+    save_images = args["save_images"]
 
     # Vérifier que le fichier existe et a l'extension .docx
     if not os.path.exists(docx_path):
@@ -518,25 +102,10 @@ def main() -> None:
     output_dir = os.path.dirname(os.path.abspath(docx_path))
 
     try:
-        # Créer une instance du convertisseur
-        from docx_json.core.converter import DocxConverter
-
-        # Vérifier si le nouveau convertisseur est disponible
-        try:
-            converter = DocxConverter(docx_path, output_dir, save_images_to_disk)
-            json_data = converter.convert()
-
-            if generate_html_output:
-                html_content = converter.generate_html(json_data)
-        except ImportError:
-            # Fallback à l'ancienne méthode
-            logging.info("Utilisation de l'ancien convertisseur")
-            logging.info(f"Traitement du fichier '{docx_path}'...")
-            print(f"Traitement du fichier '{docx_path}'...")
-            json_data = get_document_json(docx_path)
-
-            if generate_html_output:
-                html_content = generate_html(json_data)
+        # Convertir le document
+        logging.info(f"Traitement du fichier '{docx_path}'...")
+        print(f"Traitement du fichier '{docx_path}'...")
+        json_data = get_document_json(docx_path, output_dir, save_images)
 
         # Générer et sauvegarder le JSON si demandé
         if (
@@ -549,6 +118,7 @@ def main() -> None:
 
         # Générer et sauvegarder le HTML si demandé
         if generate_html_output:
+            html_content = generate_html(json_data)
             with open(html_path, "w", encoding="utf-8") as f:
                 f.write(html_content)
             logging.info(f"Fichier HTML créé: '{html_path}'")
