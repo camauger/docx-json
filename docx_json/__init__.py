@@ -9,11 +9,30 @@ Un package Python pour convertir des fichiers .docx en
 fichiers .json structurés ou .html sémantiques.
 """
 
+# Pour la compatibilité, exposer également les fonctions de l'ancienne API
+from docx_json.core.compatibility import (
+    extract_images,
+    generate_html,
+    get_document_json,
+    get_paragraph_json,
+    get_table_json,
+    process_instructions,
+)
 from docx_json.core.converter import DocxConverter, HTMLGenerator
 from docx_json.models.elements import (
-    DocumentElement, TextRun, Paragraph, Heading, ListItem,
-    Image, Table, ComponentMarker, ComponentEnd,
-    Component, Block, Instruction, RawHTML
+    Block,
+    Component,
+    ComponentEnd,
+    ComponentMarker,
+    DocumentElement,
+    Heading,
+    Image,
+    Instruction,
+    ListItem,
+    Paragraph,
+    RawHTML,
+    Table,
+    TextRun,
 )
 
 __version__ = "1.0.0"
