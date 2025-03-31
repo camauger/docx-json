@@ -1,0 +1,54 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Voici d'autres concepts importants à considérer pour les projets Python :
+
+## Type Hints et annotations
+- Utilisez les annotations de type (Python 3.5+) pour améliorer la lisibilité et la maintenance
+- Intégrez `mypy` ou `pyright` dans votre processus de développement
+- Utilisez le module `typing` pour les types complexes (List, Dict, Optional, Union, etc.)
+- Documentez les types de retour et les paramètres des fonctions
+
+## Gestion des erreurs
+- Utilisez des exceptions spécifiques plutôt que génériques
+- Créez des hiérarchies d'exceptions personnalisées pour votre application
+- Suivez le principe EAFP (Easier to Ask Forgiveness than Permission) avec try/except
+- Utilisez `finally` pour le nettoyage assuré des ressources
+- Considérez les gestionnaires de contexte (`with`) pour les ressources
+
+## Asynchronisme
+- Utilisez `async`/`await` pour les opérations d'I/O non bloquantes
+- Profitez d'asyncio pour les applications hautement concurrentes
+- Comprenez la différence entre concurrence et parallélisme
+- Utilisez `multiprocessing` pour les tâches intensives en CPU
+- Considérez `threading` pour les opérations bloquantes d'I/O quand asyncio n'est pas applicable
+
+## Bonnes pratiques fonctionnelles
+- Utilisez les compréhensions de liste, dictionnaire et ensemble
+- Tirez parti des fonctions `map`, `filter` et des générateurs
+- Exploitez les fonctions d'ordre supérieur et les lambdas
+- Utilisez `itertools` et `functools` pour des opérations fonctionnelles avancées
+- Considérez l'immutabilité quand c'est approprié (tuples, frozenset)
+
+## Packaging et distribution
+- Utilisez `pyproject.toml` pour configurer votre package (PEP 621)
+- Structurez correctement vos packages pour PyPI
+- Créez des scripts d'entrée via `console_scripts` dans `setup.py` ou `pyproject.toml`
+- Versionnez sémantiquement votre code (SemVer)
+- Utilisez des outils comme Poetry, Flit ou setuptools pour la distribution
+
+## Logging et monitoring
+- Utilisez le module `logging` plutôt que `print`
+- Configurez différents niveaux de log selon l'environnement
+- Structurez vos logs (JSON) pour faciliter l'analyse
+- Implémentez des métriques pour surveiller les performances
+
+## Design Patterns
+- Appliquez les design patterns appropriés (Singleton, Factory, Observer, etc.)
+- Utilisez l'injection de dépendances pour un code testable
+- Implémentez le pattern Repository pour l'accès aux données
+- Considérez le pattern Command pour les opérations réversibles
+
+Ces concepts supplémentaires vous aideront à développer des applications Python robustes, maintenables et performantes tout en tirant parti des fonctionnalités modernes du langage.

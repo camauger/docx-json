@@ -1,0 +1,64 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Bonnes pratiques pour la création et structure de projets Python
+
+Voici les bonnes pratiques essentielles pour structurer les projets Python :
+
+## Structure de base
+- Utilisez une structure de répertoire claire et cohérente
+- Séparez le code source, les tests, la documentation et les ressources
+- Adoptez une structure de package avec `__init__.py` dans chaque dossier
+- Placez le code d'entrée principal dans un fichier `__main__.py` ou dans un script dédié
+
+## Organisation du code
+- Suivez le principe de responsabilité unique pour chaque module
+- Limitez l'import de modules au strict nécessaire
+- Évitez les imports circulaires
+- Utilisez des imports absolus plutôt que relatifs quand c'est possible
+- Regroupez les fonctionnalités similaires dans des sous-packages
+
+## Environnement et dépendances
+- Utilisez des environnements virtuels (venv, conda)
+- Documentez les dépendances dans un fichier `requirements.txt` ou `pyproject.toml`
+- Précisez les versions des dépendances pour assurer la reproductibilité
+- Utilisez `pip-tools` ou Poetry pour gérer les dépendances
+
+## Gestion de la configuration
+- Externalisez la configuration dans des fichiers dédiés (JSON, YAML, .env)
+- Utilisez des variables d'environnement pour les paramètres sensibles
+- Implémentez une hiérarchie de configuration (valeurs par défaut, fichier, env, CLI)
+
+## Qualité du code
+- Suivez les conventions PEP 8 pour le style de code
+- Utilisez des outils comme flake8, pylint ou ruff pour l'analyse statique
+- Formatez automatiquement votre code avec black ou yapf
+- Vérifiez les types avec mypy ou pyright
+- Documentez votre code avec des docstrings (format Google, NumPy ou reStructuredText)
+
+## Tests
+- Écrivez des tests unitaires, d'intégration et fonctionnels
+- Utilisez pytest comme framework de test
+- Visez une couverture de code élevée
+- Implémentez des tests automatisés dans votre CI/CD
+
+## Exemple de structure de projet
+```
+mon_projet/
+├── pyproject.toml          # Configuration du projet et dépendances
+├── README.md               # Documentation principale
+├── docs/                   # Documentation détaillée
+├── src/                    # Code source
+│   └── mon_package/
+│       ├── __init__.py     # Définit le package
+│       ├── __main__.py     # Point d'entrée
+│       ├── core/           # Fonctionnalités principales
+│       ├── utils/          # Utilitaires
+│       └── config.py       # Gestion de configuration
+├── tests/                  # Tests
+│   ├── unit/               # Tests unitaires
+│   └── integration/        # Tests d'intégration
+└── data/                   # Données (si nécessaire)
+```

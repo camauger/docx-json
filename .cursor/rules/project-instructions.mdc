@@ -1,0 +1,161 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## 🧭 **PLAN DE TRAVAIL GLOBAL**
+
+### 🎯 Objectif :
+Créer un script Python exécutable en ligne de commande pour convertir un fichier `.docx` en :
+- un fichier `.json` détaillé représentant sa structure,
+- un fichier `.html` lisible et stylisé, en option.
+
+---
+
+## **ÉTAPES DU DÉVELOPPEMENT**
+
+---
+
+### **1. Préparer l’environnement**
+
+#### 📦 Dépendances :
+Installer les bibliothèques nécessaires :
+```bash
+pip install python-docx
+```
+
+Optionnel (selon évolutions futures) :
+```bash
+pip install beautifulsoup4 html5lib
+```
+
+#### 📁 Structure du projet :
+```
+docx_to_json/
+├── convert.py        # Le script principal
+├── test.docx         # Exemple de fichier d'entrée
+```
+
+---
+
+### **2. Lire le fichier `.docx`**
+
+#### ➤ Ouvrir le document :
+Utiliser `Document()` de `python-docx` pour charger le document :
+```python
+from docx import Document
+document = Document("fichier.docx")
+```
+
+---
+
+### **3. Parcourir les éléments du corps du document**
+
+#### ➤ Deux types principaux à gérer :
+- `paragraphs`
+- `tables`
+
+#### ➤ Extraction avec l’ordre original :
+On parcourt les éléments XML (`document.element.body`) pour récupérer l’ordre réel d’apparition (`<w:p>` et `<w:tbl>`).
+
+---
+
+### **4. Traiter les paragraphes**
+
+Pour chaque paragraphe :
+- détecter le **style** (ex: "Heading 1", "Normal"),
+- regrouper les **runs** de texte,
+- noter les **styles** (gras, italique, souligné),
+- détecter les **listes** (numérotées ou à puces),
+- convertir en JSON avec les bons types : `paragraph`, `heading`, `list_item`.
+
+---
+
+### **5. Traiter les tableaux**
+
+Pour chaque table :
+- parcourir les lignes et cellules,
+- extraire le texte de chaque cellule (parfois multi-paragraphes),
+- construire une structure JSON du type :
+```json
+{ "type": "table", "rows": [["A1", "B1"], ["A2", "B2"]] }
+```
+
+---
+
+### **6. Traiter les images**
+
+- Accéder à `document.part._rels` pour retrouver les images intégrées.
+- Extraire les blobs binaires.
+- Convertir en base64 et enregistrer dans un dictionnaire `{nom_fichier: base64}`.
+- Optionnel : intégrer les images dans le HTML avec un tag `<img>`.
+
+---
+
+### **7. Générer le JSON final**
+
+Assembler :
+```json
+{
+  "meta": { "title": "nom_du_fichier" },
+  "content": [...],
+  "images": { "image1.png": "base64..." }
+}
+```
+Sauvegarder dans un fichier `.json` avec `json.dump(...)`.
+
+---
+
+### **8. Générer le HTML (optionnel)**
+
+#### ➤ À partir du JSON :
+Créer un fichier HTML propre :
+- `<h1>` à `<h6>` pour les titres,
+- `<p>` avec `<strong>`, `<em>`, `<u>` pour les paragraphes stylisés,
+- `<ul>` ou `<ol>` si besoin pour les listes,
+- `<table>` pour les tableaux,
+- `<img src="data:image/png;base64,...">` pour les images.
+
+#### ➤ Sauvegarde :
+Nommer le fichier `.html` et l’écrire avec `open(..., "w", encoding="utf-8")`.
+
+---
+
+### **9. Ajouter les options CLI**
+
+#### ➤ Interface ligne de commande :
+- `sys.argv[1]` → fichier `.docx`
+- `--json` → activer la sortie JSON
+- `--html` → activer la sortie HTML
+
+Valider les arguments et afficher un message d’usage en cas d’erreur.
+
+---
+
+### **10. Tests & validation**
+
+- Utiliser plusieurs `.docx` de test : avec titres, paragraphes, listes, tableaux, images.
+- Vérifier que le JSON est bien formé et complet.
+- Vérifier que le HTML est lisible, structuré, et que les images s’affichent.
+
+---
+
+## 📜 INSTRUCTIONS POUR LE DÉVELOPPEUR
+
+1. Créer un nouveau projet Python avec le fichier `convert.py`.
+2. Installer `python-docx`.
+3. Implémenter les fonctions suivantes :
+   - `extract_images()`
+   - `get_paragraph_json()`
+   - `get_table_json()`
+   - `get_document_json()`
+   - `generate_html()`
+4. Gérer les arguments CLI avec `sys.argv`.
+5. Testez avec plusieurs `.docx` variés.
+6. Ajouter du logging ou des `print()` pour déboguer facilement.
+7. Documenter chaque fonction.
+8. Optionnel : ajouter une gestion des erreurs (fichier introuvable, mauvaise extension, etc.)
+
+---
+Suivre les instructions de [README.md](mdc:README.md)
+Suivre les bonnes pratiques établies dans @python-r[python-rules.mdc](mdc:.cursor/rules/python-rules.mdc), [python-classes-rule.mdc](mdc:.cursor/rules/python-classes-rule.mdc), [python-decorators.mdc](mdc:.cursor/rules/python-decorators.mdc) et [python-tips.mdc](mdc:.cursor/rules/python-tips.mdc)

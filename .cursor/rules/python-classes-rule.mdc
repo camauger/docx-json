@@ -1,0 +1,15 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Classes Python
+
+- Suivez le principe d'encapsulation en utilisant des attributs privés avec le préfixe `_` (convention) ou `__` (name mangling)
+- Implémentez les méthodes spéciales (`__init__`, `__str__`, `__repr__`, etc.) lorsque approprié
+- Utilisez l'héritage de manière judicieuse, préférez la composition à l'héritage quand c'est possible
+- Créez des classes abstraites avec `abc.ABC` pour définir des interfaces
+- Profitez des dataclasses pour les structures de données simples (Python 3.7+)
+- Implémentez les méthodes `__eq__` et `__hash__` pour les objets destinés à être utilisés dans des collections
+- Utilisez les propriétés (`@property`) au lieu des getters/setters explicites
+

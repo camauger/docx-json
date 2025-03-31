@@ -1,0 +1,15 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Décorateurs
+
+- Utilisez des décorateurs pour factoriser le code transversal (logging, mesure de performance, cache, validation)
+- Créez des décorateurs paramétrables lorsque nécessaire
+- Conservez les signatures de fonction avec `@functools.wraps`
+- Utilisez `@classmethod` et `@staticmethod` pour les méthodes appropriées
+- Tirez parti de `@property`, `@setter` et `@deleter` pour contrôler l'accès aux attributs
+- Appliquez `@contextlib.contextmanager` pour créer des gestionnaires de contexte
+- Considérez les décorateurs standards comme `@lru_cache` pour l'optimisation
+- Documentez clairement ce que font vos décorateurs personnalisés

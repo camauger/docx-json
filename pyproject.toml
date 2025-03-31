@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "docx-json"
+version = "1.0.0"
+description = "Convertit des fichiers DOCX en JSON ou HTML"
+authors = [
+    {name = "Développeur TÉLUQ", email = "dev@teluq.ca"}
+]
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "python-docx>=0.8.10",
+]
+
+[project.urls]
+"Bug Tracker" = "https://github.com/teluq/docx-json/issues"
+
+[project.scripts]
+docx-json = "docx_json.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["docx_json", "docx_json.*"]
+
+[tool.black]
+line-length = 88
+target-version = ["py36", "py37", "py38", "py39"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.pytest]
+testpaths = ["tests"]
