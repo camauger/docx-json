@@ -46,7 +46,8 @@ docx-json mon-document.docx --json --html
 python run_docx_converter.py mon-document.docx --json --html
 ```
 
-### Options disponibles :
+### Options disponibles
+
 - `--json` : génère un fichier `.json` (activé par défaut si aucune option n'est spécifiée)
 - `--html` : génère un fichier `.html`
 - `--no-save-images` : encode les images en base64 au lieu de les sauvegarder comme fichiers séparés
@@ -71,7 +72,7 @@ Vous pouvez ajouter des instructions spéciales dans votre document Word pour pe
 
 Le convertisseur reconnaît des balises spéciales pour créer des composants interactifs Bootstrap. Ces composants sont délimités par des balises comme `[NomDuComposant]` et optionnellement `[Fin NomDuComposant]`.
 
-### Composants pris en charge :
+### Composants pris en charge
 
 | Balise | Description |
 |--------|-------------|
