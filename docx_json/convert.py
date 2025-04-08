@@ -37,23 +37,25 @@ def parse_args() -> Dict[str, Any]:
         "docx_path": None,
         "generate_json": False,
         "generate_html": False,
+        "generate_markdown": False,
         "save_images": True,  # Par défaut, les images sont sauvegardées
         "verbose": False,
     }
 
     if len(sys.argv) < 2 or "--help" in sys.argv or "-h" in sys.argv:
         print(
-            "Usage: python convert.py <fichier.docx> [--json] [--html] [--no-save-images] [--verbose]"
+            "Usage: python convert.py <fichier.docx> [--json] [--html] [--md] [--no-save-images] [--verbose]"
         )
         print("\nOptions:")
         print("  --json           Génère un fichier JSON")
         print("  --html           Génère un fichier HTML")
+        print("  --md             Génère un fichier Markdown")
         print(
             "  --no-save-images Encode les images en base64 au lieu de les sauvegarder comme fichiers"
         )
         print("  --verbose        Affiche des messages de debug")
         print("\nExemple:")
-        print("  python convert.py mon-document.docx --json --html")
+        print("  python convert.py mon-document.docx --json --html --md")
         sys.exit(0 if "--help" in sys.argv or "-h" in sys.argv else 1)
 
     # Le premier argument est le chemin du fichier
@@ -62,8 +64,17 @@ def parse_args() -> Dict[str, Any]:
     # Options
     args["generate_json"] = "--json" in sys.argv
     args["generate_html"] = "--html" in sys.argv
+    args["generate_markdown"] = "--md" in sys.argv
     args["verbose"] = "--verbose" in sys.argv
     args["save_images"] = "--no-save-images" not in sys.argv
+
+    # Si aucune option de sortie n'est spécifiée, générer le JSON par défaut
+    if (
+        not args["generate_json"]
+        and not args["generate_html"]
+        and not args["generate_markdown"]
+    ):
+        args["generate_json"] = True
 
     return args
 
@@ -82,6 +93,7 @@ def main() -> None:
     docx_path = args["docx_path"]
     generate_json = args["generate_json"]
     generate_html_output = args["generate_html"]
+    generate_markdown = args["generate_markdown"]
     save_images = args["save_images"]
 
     # Vérifier que le fichier existe et a l'extension .docx
@@ -99,6 +111,7 @@ def main() -> None:
     base_name = os.path.splitext(docx_path)[0]
     json_path = f"{base_name}.json"
     html_path = f"{base_name}.html"
+    markdown_path = f"{base_name}.md"
     output_dir = os.path.dirname(os.path.abspath(docx_path))
 
     try:
@@ -123,6 +136,14 @@ def main() -> None:
                 f.write(html_content)
             logging.info(f"Fichier HTML créé: '{html_path}'")
             print(f"Fichier HTML créé: '{html_path}'")
+
+        # Générer et sauvegarder le Markdown si demandé
+        if generate_markdown:
+            markdown_content = generate_markdown(json_data)
+            with open(markdown_path, "w", encoding="utf-8") as f:
+                f.write(markdown_content)
+            logging.info(f"Fichier Markdown créé: '{markdown_path}'")
+            print(f"Fichier Markdown créé: '{markdown_path}'")
 
         logging.info("Conversion terminée avec succès!")
         print("Conversion terminée avec succès!")

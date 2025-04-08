@@ -6,9 +6,12 @@ Classe principale de conversion DOCX vers JSON/HTML
 """
 
 import base64
+import datetime
+import json
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+import re
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from docx import Document
 from docx.oxml.table import CT_Tbl
@@ -552,6 +555,21 @@ class DocxConverter:
         html_generator = HTMLGenerator(json_data)
         return html_generator.generate()
 
+    def generate_markdown(self, json_data: Dict[str, Any]) -> str:
+        """
+        Génère un document Markdown à partir de la structure JSON.
+
+        Args:
+            json_data: Dictionnaire représentant le document
+
+        Returns:
+            Une chaîne de caractères contenant le Markdown
+        """
+        logging.info("Génération du Markdown...")
+
+        md_generator = MarkdownGenerator(json_data)
+        return md_generator.generate()
+
 
 class HTMLGenerator:
     """
@@ -952,3 +970,190 @@ class HTMLGenerator:
             )
 
         return element_html
+
+
+class MarkdownGenerator:
+    """
+    Classe pour générer du Markdown à partir de la structure JSON.
+    """
+
+    def __init__(self, json_data: Dict[str, Any]):
+        """
+        Initialise le générateur Markdown.
+
+        Args:
+            json_data: Dictionnaire représentant le document
+        """
+        self._json_data = json_data
+        self._images = json_data["images"]
+        self._list_stack = []  # Pour suivre les listes imbriquées
+        self._component_level = 0  # Pour suivre l'imbrication des composants
+
+    def generate(self) -> str:
+        """
+        Génère le document Markdown complet.
+
+        Returns:
+            Une chaîne de caractères contenant le Markdown
+        """
+        md = []
+
+        # En-tête du document avec métadonnées YAML (optionnel)
+        md.append("---")
+        md.append(f"title: {self._json_data['meta']['title']}")
+        md.append("author: Généré automatiquement")
+        md.append("date: " + datetime.datetime.now().strftime("%Y-%m-%d"))
+        md.append("---")
+        md.append("")  # Ligne vide après les métadonnées
+
+        # Générer le Markdown pour chaque élément
+        for element in self._json_data["content"]:
+            md.extend(self._generate_element_md(element))
+            md.append("")  # Ligne vide entre les éléments pour la lisibilité
+
+        return "\n".join(md)
+
+    def _generate_element_md(self, element: Dict[str, Any]) -> List[str]:
+        """
+        Génère le Markdown pour un élément spécifique.
+
+        Args:
+            element: Dictionnaire représentant l'élément
+
+        Returns:
+            Liste de chaînes de caractères Markdown
+        """
+        element_md = []
+
+        if element["type"] == "paragraph":
+            # Construire le texte du paragraphe
+            para_text = ""
+            for run in element["runs"]:
+                text = run["text"]
+                if run["bold"]:
+                    text = f"**{text}**"
+                if run["italic"]:
+                    text = f"*{text}*"
+                if run["underline"]:
+                    # Markdown n'a pas de syntaxe pour souligné, utilisons HTML ou une autre approche
+                    text = f"<u>{text}</u>"  # HTML dans Markdown
+                para_text += text
+
+            # Ajouter les attributs HTML en commentaire si présents
+            attrs = []
+            if "html_class" in element:
+                attrs.append(f"class=\"{element['html_class']}\"")
+            if "html_id" in element:
+                attrs.append(f"id=\"{element['html_id']}\"")
+
+            if attrs:
+                element_md.append(f"<!-- {' '.join(attrs)} -->")
+
+            element_md.append(para_text)
+
+        elif element["type"] == "heading":
+            level = element["level"]
+            # Construire le texte du titre
+            heading_text = ""
+            for run in element["runs"]:
+                text = run["text"]
+                if run["bold"]:
+                    text = f"**{text}**"
+                if run["italic"]:
+                    text = f"*{text}*"
+                if run["underline"]:
+                    text = f"<u>{text}</u>"  # HTML dans Markdown
+                heading_text += text
+
+            # Ajouter les attributs HTML en commentaire si présents
+            attrs = []
+            if "html_class" in element:
+                attrs.append(f"class=\"{element['html_class']}\"")
+            if "html_id" in element:
+                attrs.append(f"id=\"{element['html_id']}\"")
+
+            if attrs:
+                element_md.append(f"<!-- {' '.join(attrs)} -->")
+
+            # Deux styles de titres en markdown: # et ======/-------
+            if level == 1:
+                element_md.append(heading_text)
+                element_md.append("=" * len(heading_text))
+            elif level == 2:
+                element_md.append(heading_text)
+                element_md.append("-" * len(heading_text))
+            else:
+                # Titres de niveau 3 et au-delà
+                element_md.append("#" * level + " " + heading_text)
+
+        elif element["type"] == "list_item":
+            # Construire le texte de l'élément de liste
+            item_text = ""
+            for run in element["runs"]:
+                text = run["text"]
+                if run["bold"]:
+                    text = f"**{text}**"
+                if run["italic"]:
+                    text = f"*{text}*"
+                if run["underline"]:
+                    text = f"<u>{text}</u>"  # HTML dans Markdown
+                item_text += text
+
+            # Par défaut, utiliser des listes à puces
+            element_md.append(f"- {item_text}")
+
+        elif element["type"] == "table":
+            # Créer un tableau Markdown
+            for row_idx, row in enumerate(element["rows"]):
+                # Construire la ligne du tableau
+                cells = []
+                for cell in row:
+                    # Joindre tout le contenu de la cellule
+                    cell_text = ""
+                    for para in cell:
+                        para_md = self._generate_element_md(para)
+                        cell_text += " ".join(para_md)
+                    cells.append(cell_text.strip())
+
+                element_md.append("| " + " | ".join(cells) + " |")
+
+                # Ajouter la ligne de séparation après l'en-tête
+                if row_idx == 0:
+                    element_md.append("| " + " | ".join(["---"] * len(row)) + " |")
+
+        elif element["type"] == "raw_html":
+            # Garder le HTML brut tel quel
+            element_md.append(element["content"])
+
+        elif element["type"] == "block":
+            block_type = element["block_type"]
+            if block_type == "quote":
+                # Citation en Markdown
+                for content_elem in element["content"]:
+                    content_md = self._generate_element_md(content_elem)
+                    for line in content_md:
+                        # Préfixer chaque ligne avec >
+                        element_md.append(f"> {line}")
+            elif block_type == "aside":
+                # Pas d'équivalent direct pour aside en Markdown
+                element_md.append(":::info")
+                for content_elem in element["content"]:
+                    element_md.extend(self._generate_element_md(content_elem))
+                element_md.append(":::")
+
+        elif element["type"] == "component":
+            component_type = element["component_type"]
+
+            # Noter le début du composant
+            element_md.append(f"[{component_type}]")
+            element_md.append("")  # Ligne vide pour lisibilité
+
+            # Traiter le contenu du composant
+            for content_elem in element["content"]:
+                element_md.extend(self._generate_element_md(content_elem))
+
+            # Fermer le composant
+            element_md.append("")  # Ligne vide pour lisibilité
+            element_md.append(f"[Fin {component_type}]")
+
+        return element_md

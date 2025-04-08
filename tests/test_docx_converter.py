@@ -12,7 +12,7 @@ import unittest
 
 from docx import Document
 
-from docx_json.core.converter import DocxConverter, HTMLGenerator
+from docx_json.core.converter import DocxConverter, HTMLGenerator, MarkdownGenerator
 from docx_json.models.elements import (
     Component,
     DocumentElement,
@@ -292,6 +292,116 @@ class TestHTMLGenerator(unittest.TestCase):
         self.assertTrue("accordion-body" in accordion_html)
         self.assertTrue("Section Accordéon" in accordion_html)
         self.assertTrue("Contenu caché" in accordion_html)
+
+
+class TestMarkdownGenerator(unittest.TestCase):
+    """Tests unitaires pour la classe MarkdownGenerator."""
+
+    def setUp(self):
+        """Initialise les données de test."""
+        self.json_data = {
+            "meta": {"title": "test.docx"},
+            "content": [
+                {
+                    "type": "heading",
+                    "level": 1,
+                    "runs": [{"text": "Titre", "bold": True}],
+                },
+                {"type": "paragraph", "runs": [{"text": "Paragraphe", "bold": False}]},
+                {
+                    "type": "component",
+                    "component_type": "Accordéon",
+                    "content": [
+                        {
+                            "type": "heading",
+                            "level": 2,
+                            "runs": [{"text": "Section Accordéon", "bold": True}],
+                        },
+                        {
+                            "type": "paragraph",
+                            "runs": [{"text": "Contenu caché", "bold": False}],
+                        },
+                    ],
+                },
+                {
+                    "type": "table",
+                    "rows": [
+                        [
+                            [{"type": "paragraph", "runs": [{"text": "Colonne 1"}]}],
+                            [{"type": "paragraph", "runs": [{"text": "Colonne 2"}]}],
+                        ],
+                        [
+                            [{"type": "paragraph", "runs": [{"text": "A1"}]}],
+                            [{"type": "paragraph", "runs": [{"text": "B1"}]}],
+                        ],
+                    ],
+                },
+                {
+                    "type": "block",
+                    "block_type": "quote",
+                    "content": [
+                        {
+                            "type": "paragraph",
+                            "runs": [{"text": "Ceci est une citation"}],
+                        }
+                    ],
+                },
+            ],
+            "images": {},
+        }
+
+        self.generator = MarkdownGenerator(self.json_data)
+
+    def test_generate_markdown_structure(self):
+        """Teste la génération de la structure Markdown de base."""
+        markdown = self.generator.generate()
+
+        # Vérifier la structure Markdown
+        self.assertTrue("---" in markdown)  # Métadonnées YAML
+        self.assertTrue("title: test.docx" in markdown)
+        self.assertTrue("author: Généré automatiquement" in markdown)
+        self.assertTrue("date: " in markdown)
+
+    def test_generate_element_md(self):
+        """Teste la génération Markdown pour différents types d'éléments."""
+        # Tester un titre
+        heading_md = "\n".join(
+            self.generator._generate_element_md(self.json_data["content"][0])
+        )
+        self.assertTrue("**Titre**" in heading_md)
+        self.assertTrue("=" in heading_md)  # Soulignement du titre niveau 1
+
+        # Tester un paragraphe
+        para_md = "\n".join(
+            self.generator._generate_element_md(self.json_data["content"][1])
+        )
+        self.assertTrue("Paragraphe" in para_md)
+
+        # Tester un composant accordéon
+        accordion_md = "\n".join(
+            self.generator._generate_element_md(self.json_data["content"][2])
+        )
+        self.assertTrue("[Accordéon]" in accordion_md)
+        self.assertTrue(
+            "## **Section Accordéon**" in accordion_md
+            or "**Section Accordéon**\n-" in accordion_md
+        )
+        self.assertTrue("Contenu caché" in accordion_md)
+        self.assertTrue("[Fin Accordéon]" in accordion_md)
+
+        # Tester un tableau
+        table_md = "\n".join(
+            self.generator._generate_element_md(self.json_data["content"][3])
+        )
+        self.assertTrue("| Colonne 1 | Colonne 2 |" in table_md)
+        self.assertTrue("| --- | --- |" in table_md)
+        self.assertTrue("| A1 | B1 |" in table_md)
+
+        # Tester un bloc citation
+        quote_md = "\n".join(
+            self.generator._generate_element_md(self.json_data["content"][4])
+        )
+        self.assertTrue("> Ceci est une citation" in quote_md)
 
 
 if __name__ == "__main__":

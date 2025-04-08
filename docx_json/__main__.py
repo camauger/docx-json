@@ -27,6 +27,7 @@ def main() -> None:
     docx_path = args["docx_path"]
     generate_json = args["generate_json"]
     generate_html = args["generate_html"]
+    generate_markdown = args["generate_markdown"]
     save_images = args["save_images"]
 
     # Vérifier que le fichier existe et a l'extension .docx
@@ -49,6 +50,7 @@ def main() -> None:
     base_name = os.path.splitext(docx_path)[0]
     json_path = f"{base_name}.json"
     html_path = f"{base_name}.html"
+    markdown_path = f"{base_name}.md"
 
     try:
         # Créer le convertisseur
@@ -73,6 +75,14 @@ def main() -> None:
                 f.write(html_content)
             logging.info(f"Fichier HTML créé: '{html_path}'")
             print(f"Fichier HTML créé: '{html_path}'")
+
+        # Générer et sauvegarder le Markdown si demandé
+        if generate_markdown:
+            markdown_content = converter.generate_markdown(json_data)
+            with open(markdown_path, "w", encoding="utf-8") as f:
+                f.write(markdown_content)
+            logging.info(f"Fichier Markdown créé: '{markdown_path}'")
+            print(f"Fichier Markdown créé: '{markdown_path}'")
 
         logging.info("Conversion terminée avec succès!")
         print("Conversion terminée avec succès!")

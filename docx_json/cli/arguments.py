@@ -26,6 +26,8 @@ def parse_args() -> Dict[str, Any]:
 
     parser.add_argument("--html", action="store_true", help="Génère un fichier HTML")
 
+    parser.add_argument("--md", action="store_true", help="Génère un fichier Markdown")
+
     parser.add_argument(
         "--no-save-images",
         action="store_true",
@@ -39,13 +41,14 @@ def parse_args() -> Dict[str, Any]:
     args = parser.parse_args()
 
     # Si aucune option de sortie n'est spécifiée, générer le JSON par défaut
-    if not args.json and not args.html:
+    if not args.json and not args.html and not args.md:
         args.json = True
 
     return {
         "docx_path": args.docx_path,
         "generate_json": args.json,
         "generate_html": args.html,
+        "generate_markdown": args.md,
         "save_images": not args.no_save_images,
         "verbose": args.verbose,
     }

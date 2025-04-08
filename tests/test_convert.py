@@ -2,19 +2,25 @@
 # -*- coding: utf-8 -*-
 
 """
-Tests unitaires pour le script convert.py
+Tests unitaires pour la couche de compatibilité docx_json.core.compatibility
+
+Ce fichier teste les fonctions de compatibilité qui fournissent une interface
+vers l'implémentation orientée objet sous-jacente.
 """
 
-import unittest
-import os
 import json
+import os
 import tempfile
+import unittest
+
 from docx import Document
-from docx_json.convert import (
+
+from docx_json.core.compatibility import (
+    generate_html,
+    generate_markdown,
     get_paragraph_json,
     get_table_json,
     process_instructions,
-    generate_html
 )
 
 
@@ -36,8 +42,7 @@ class TestConvertFunctions(unittest.TestCase):
         table.cell(1, 1).text = "B2"
 
         # Enregistrer le document
-        self.temp_file = tempfile.NamedTemporaryFile(
-            suffix='.docx', delete=False)
+        self.temp_file = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
         self.test_doc.save(self.temp_file.name)
         self.temp_file.close()
 
@@ -53,8 +58,7 @@ class TestConvertFunctions(unittest.TestCase):
 
         self.assertEqual(result["type"], "paragraph")
         self.assertTrue(isinstance(result["runs"], list))
-        self.assertEqual(result["runs"][0]["text"],
-                         "Ceci est un paragraphe de test.")
+        self.assertEqual(result["runs"][0]["text"], "Ceci est un paragraphe de test.")
 
     def test_heading_json(self):
         """Teste la conversion d'un titre en JSON."""
@@ -82,12 +86,26 @@ class TestConvertFunctions(unittest.TestCase):
         """Teste le traitement des instructions intégrées."""
         elements = [
             {"type": "instruction", "content": "class hero dark"},
-            {"type": "heading", "level": 1, "runs": [
-                {"text": "Titre", "bold": True}]},
+            {
+                "type": "heading",
+                "level": 1,
+                "runs": [
+                    {"text": "Titre", "bold": True, "italic": False, "underline": False}
+                ],
+            },
             {"type": "instruction", "content": "quote start"},
-            {"type": "paragraph", "runs": [
-                {"text": "Citation", "bold": False}]},
-            {"type": "instruction", "content": "quote end"}
+            {
+                "type": "paragraph",
+                "runs": [
+                    {
+                        "text": "Citation",
+                        "bold": False,
+                        "italic": False,
+                        "underline": False,
+                    }
+                ],
+            },
+            {"type": "instruction", "content": "quote end"},
         ]
 
         result = process_instructions(elements)
@@ -106,12 +124,31 @@ class TestConvertFunctions(unittest.TestCase):
         json_data = {
             "meta": {"title": "test.docx"},
             "content": [
-                {"type": "heading", "level": 1, "runs": [
-                    {"text": "Titre", "bold": True}]},
-                {"type": "paragraph", "runs": [
-                    {"text": "Paragraphe", "bold": False}]}
+                {
+                    "type": "heading",
+                    "level": 1,
+                    "runs": [
+                        {
+                            "text": "Titre",
+                            "bold": True,
+                            "italic": False,
+                            "underline": False,
+                        }
+                    ],
+                },
+                {
+                    "type": "paragraph",
+                    "runs": [
+                        {
+                            "text": "Paragraphe",
+                            "bold": False,
+                            "italic": False,
+                            "underline": False,
+                        }
+                    ],
+                },
             ],
-            "images": {}
+            "images": {},
         }
 
         html = generate_html(json_data)
@@ -120,6 +157,45 @@ class TestConvertFunctions(unittest.TestCase):
         self.assertTrue("<h1>" in html)
         self.assertTrue("<strong>Titre</strong>" in html)
         self.assertTrue("<p>" in html)
+
+    def test_generate_markdown(self):
+        """Teste la génération de Markdown à partir d'une structure JSON."""
+        json_data = {
+            "meta": {"title": "test.docx"},
+            "content": [
+                {
+                    "type": "heading",
+                    "level": 1,
+                    "runs": [
+                        {
+                            "text": "Titre",
+                            "bold": True,
+                            "italic": False,
+                            "underline": False,
+                        }
+                    ],
+                },
+                {
+                    "type": "paragraph",
+                    "runs": [
+                        {
+                            "text": "Paragraphe",
+                            "bold": False,
+                            "italic": False,
+                            "underline": False,
+                        }
+                    ],
+                },
+            ],
+            "images": {},
+        }
+
+        markdown = generate_markdown(json_data)
+
+        self.assertTrue("---" in markdown)  # Métadonnées YAML
+        self.assertTrue("title: test.docx" in markdown)
+        self.assertTrue("**Titre**" in markdown)
+        self.assertTrue("Paragraphe" in markdown)
 
 
 if __name__ == "__main__":

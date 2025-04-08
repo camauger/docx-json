@@ -13,6 +13,7 @@ fichiers .json structurés ou .html sémantiques.
 from docx_json.core.compatibility import (
     extract_images,
     generate_html,
+    generate_markdown,
     get_document_json,
     get_paragraph_json,
     get_table_json,

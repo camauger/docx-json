@@ -259,3 +259,18 @@ def generate_html(json_data: Dict[str, Any]) -> str:
     # Utiliser la nouvelle classe HTMLGenerator
     generator = HTMLGenerator(json_data)
     return generator.generate()
+
+
+def generate_markdown(json_data: Dict[str, Any]) -> str:
+    """
+    Génère un document Markdown à partir de la structure JSON
+
+    Args:
+        json_data: Dictionnaire représentant le document
+
+    Returns:
+        Une chaîne de caractères contenant le Markdown
+    """
+    # Utiliser la classe DocxConverter
+    converter = DocxConverter("", ".")
+    return converter.generate_markdown(json_data)
