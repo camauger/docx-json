@@ -246,18 +246,29 @@ def get_document_json(
     return converter.convert()
 
 
-def generate_html(json_data: Dict[str, Any]) -> str:
+def generate_html(json_data: Dict[str, Any], css_path: Optional[str] = None) -> str:
     """
     Génère un document HTML à partir de la structure JSON
 
     Args:
         json_data: Dictionnaire représentant le document
+        css_path: Chemin vers un fichier CSS personnalisé (optionnel)
 
     Returns:
         Une chaîne de caractères contenant le HTML
     """
     # Utiliser la nouvelle classe HTMLGenerator
     generator = HTMLGenerator(json_data)
+
+    # Si un CSS personnalisé est fourni, le charger
+    if css_path and os.path.exists(css_path):
+        try:
+            with open(css_path, "r", encoding="utf-8") as f:
+                custom_css = f.read()
+            return generator.generate(custom_css=custom_css)
+        except Exception as e:
+            logging.warning(f"Impossible de charger le CSS personnalisé: {str(e)}")
+
     return generator.generate()
 
 
@@ -274,3 +285,29 @@ def generate_markdown(json_data: Dict[str, Any]) -> str:
     # Utiliser la classe DocxConverter
     converter = DocxConverter("", ".")
     return converter.generate_markdown(json_data)
+
+
+def validate_docx(docx_path: str) -> bool:
+    """
+    Vérifie si le fichier est un document DOCX valide.
+
+    Args:
+        docx_path: Chemin vers le fichier DOCX à valider
+
+    Returns:
+        bool: True si le fichier est un DOCX valide, False sinon
+    """
+    if not os.path.exists(docx_path):
+        return False
+
+    if not docx_path.lower().endswith(".docx"):
+        return False
+
+    try:
+        # Tenter d'ouvrir le document avec python-docx
+        from docx import Document
+
+        Document(docx_path)
+        return True
+    except Exception:
+        return False

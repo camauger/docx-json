@@ -19,6 +19,7 @@ classifiers = [
 ]
 dependencies = [
     "python-docx>=0.8.10",
+    "tqdm>=4.66.1",
 ]
 
 [project.urls]
