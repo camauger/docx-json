@@ -81,3 +81,6 @@ logs/
 *.log
 temp/
 tmp/
+
+# Ignorer les extensions
+mimir/
