@@ -6,7 +6,8 @@ Module pour la génération de Markdown à partir de la structure JSON
 ------------------------------------------------------------------
 """
 
-from typing import Any, Dict, List
+import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class MarkdownGenerator:
@@ -23,6 +24,8 @@ class MarkdownGenerator:
         """
         self._json_data = json_data
         self._images = json_data["images"]
+        self._list_stack = []  # Pour suivre les listes imbriquées
+        self._component_level = 0  # Pour suivre l'imbrication des composants
 
     def generate(self) -> str:
         """
@@ -33,9 +36,13 @@ class MarkdownGenerator:
         """
         markdown = []
 
-        # Titre du document
-        title = self._json_data["meta"]["title"]
-        markdown.append(f"# {title}\n")
+        # Ajout d'un frontmatter YAML
+        markdown.append("---")
+        markdown.append(f"title: {self._json_data['meta']['title']}")
+        markdown.append("author: Généré automatiquement")
+        markdown.append("date: " + datetime.datetime.now().strftime("%Y-%m-%d"))
+        markdown.append("---")
+        markdown.append("")  # Ligne vide après les métadonnées
 
         # Générer le Markdown pour chaque élément
         for element in self._json_data["content"]:
@@ -95,7 +102,19 @@ class MarkdownGenerator:
                 if run["underline"]:
                     text = f"<u>{text}</u>"
                 line.append(text)
-            element_md.append(f"{'#' * level} {''.join(line)}")
+
+            heading_text = "".join(line)
+
+            # Utiliser des styles de titres plus visuels pour les niveaux 1 et 2
+            if level == 1:
+                element_md.append(heading_text)
+                element_md.append("=" * len(heading_text))
+            elif level == 2:
+                element_md.append(heading_text)
+                element_md.append("-" * len(heading_text))
+            else:
+                # Pour les niveaux 3+, utiliser la notation #
+                element_md.append(f"{'#' * level} {heading_text}")
 
             # Ajouter les attributs HTML comme commentaires
             attrs = []
@@ -107,7 +126,10 @@ class MarkdownGenerator:
                 element_md.append(f"<!-- {' '.join(attrs)} -->")
 
         elif element["type"] == "list_item":
-            # Note: ceci ne gère pas les listes imbriquées correctement
+            # Déterminer le niveau d'imbrication et le type de liste
+            list_level = self._determine_list_level(element)
+            list_marker = self._get_list_marker(element, list_level)
+
             line = []
             for run in element["runs"]:
                 text = run["text"]
@@ -120,8 +142,9 @@ class MarkdownGenerator:
                     text = f"<u>{text}</u>"
                 line.append(text)
 
-            # On utilise des tirets par défaut (Markdown supporte *, +, -)
-            element_md.append(f"- {''.join(line)}")
+            # Indentation en fonction du niveau d'imbrication
+            indent = "  " * list_level
+            element_md.append(f"{indent}{list_marker} {''.join(line)}")
 
         elif element["type"] == "table":
             # Créer l'en-tête de tableau si la première ligne existe
@@ -169,17 +192,20 @@ class MarkdownGenerator:
                         element_md.append(f"> {line}")
 
             else:
-                # Pour les autres types de blocs, utiliser une balise HTML avec commentaire
-                element_md.append(f'<div class="{block_type}">')
+                # Pour les autres types de blocs, utiliser une syntaxe plus expressive
+                element_md.append(f"::: {block_type}")
 
                 for content_elem in element["content"]:
                     lines = self._generate_element_markdown(content_elem)
                     element_md.extend(lines)
 
-                element_md.append("</div>")
+                element_md.append(":::")
 
         elif element["type"] == "component":
             component_type = element["component_type"]
+
+            # Augmenter le niveau d'imbrication
+            self._component_level += 1
 
             # En Markdown, nous utilisons la syntaxe de bloc personnalisée de fenced divs
             element_md.append(f":::{component_type}")
@@ -190,9 +216,52 @@ class MarkdownGenerator:
 
             element_md.append(":::")
 
+            # Diminuer le niveau d'imbrication
+            self._component_level -= 1
+
         elif element["type"] == "image" and "image_path" in element:
             img_path = element["image_path"]
             img_alt = element.get("alt_text", "Image")
-            element_md.append(f"![{img_alt}]({img_path})")
+
+            # Ajouter une légende si disponible
+            caption = element.get("caption", "")
+            if caption:
+                element_md.append(f"![{img_alt}]({img_path})\n*{caption}*")
+            else:
+                element_md.append(f"![{img_alt}]({img_path})")
 
         return element_md
+
+    def _determine_list_level(self, element: Dict[str, Any]) -> int:
+        """
+        Détermine le niveau d'imbrication d'un élément de liste.
+
+        Args:
+            element: L'élément de liste à analyser
+
+        Returns:
+            Le niveau d'imbrication (0 pour le premier niveau)
+        """
+        # Dans une implémentation réelle, on pourrait utiliser des attributs dans l'élément
+        # pour déterminer le niveau d'imbrication. Ici, on retourne 0 par défaut.
+        return element.get("list_level", 0)
+
+    def _get_list_marker(self, element: Dict[str, Any], level: int) -> str:
+        """
+        Retourne le marqueur approprié pour un élément de liste.
+
+        Args:
+            element: L'élément de liste
+            level: Le niveau d'imbrication
+
+        Returns:
+            Le marqueur de liste (-, *, +, 1., etc.)
+        """
+        list_type = element.get("list_type", "unordered")
+
+        if list_type == "ordered":
+            return "1."
+        else:
+            # Alterner les marqueurs selon le niveau d'imbrication
+            markers = ["-", "*", "+"]
+            return markers[level % len(markers)]

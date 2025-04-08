@@ -27,8 +27,8 @@ def find_docx_files(directory: str, recursive: bool = False) -> List[str]:
     Returns:
         List[str]: Liste des chemins des fichiers DOCX trouvés
     """
-    docx_files = []
-    directory_path = Path(directory)
+    docx_files: List[str] = []
+    directory_path: Path = Path(directory)
 
     # Déterminer le modèle de recherche en fonction du mode récursif
     if recursive:
@@ -81,7 +81,7 @@ def process_batch(
         return (0, 0)
 
     # Trouver tous les fichiers DOCX
-    docx_files = find_docx_files(input_dir, recursive)
+    docx_files: List[str] = find_docx_files(input_dir, recursive)
 
     if not docx_files:
         logging.warning(f"Aucun fichier DOCX trouvé dans '{input_dir}'.")

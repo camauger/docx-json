@@ -53,7 +53,7 @@ def get_output_paths(
         base_name = f"{base_name}{suffix}"
 
     # Déterminer le dossier de sortie
-    out_dir = Path(output_dir) if output_dir else input_path.parent
+    out_dir: Path = Path(output_dir) if output_dir else input_path.parent
 
     # Créer le dossier de sortie s'il n'existe pas
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -212,3 +212,15 @@ def convert_file(
         if not quiet:
             print(f"Erreur inattendue: {str(e)}")
         return False
+
+
+# Exemples d'usage
+
+if __name__ == "__main__":
+    # Exemple de conversion d'un fichier DOCX
+    docx_path = "chemin/vers/votre/document.docx"
+    output_dir = "chemin/vers/dossier/sortie"
+    formats = (True, True, True)  # JSON, HTML, Markdown
+
+    convert_file(docx_path, output_dir, formats=formats)
+

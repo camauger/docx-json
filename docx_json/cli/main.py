@@ -108,3 +108,4 @@ if __name__ == "__main__":
         print(f"Erreur critique: {str(e)}")
         logging.exception("Erreur critique non gérée")
         sys.exit(1)
+

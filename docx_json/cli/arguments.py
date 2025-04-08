@@ -7,7 +7,7 @@ Gestion des arguments de la ligne de commande
 """
 
 import argparse
-from typing import Any, Dict, Tuple
+from typing import Tuple
 
 
 def parse_args() -> argparse.Namespace:
@@ -28,7 +28,7 @@ def parse_args() -> argparse.Namespace:
     )
 
     # Formats de sortie
-    output_group = parser.add_argument_group("Formats de sortie")
+    output_group: argparse._ArgumentGroup = parser.add_argument_group("Formats de sortie")
     output_group.add_argument(
         "--json", action="store_true", help="Génère un fichier JSON"
     )
@@ -40,7 +40,7 @@ def parse_args() -> argparse.Namespace:
     )
 
     # Options avancées
-    advanced_group = parser.add_argument_group("Options avancées")
+    advanced_group: argparse._ArgumentGroup = parser.add_argument_group("Options avancées")
     advanced_group.add_argument(
         "--output-dir",
         help="Dossier de destination (par défaut: même dossier que le fichier source)",
@@ -89,7 +89,7 @@ def parse_args() -> argparse.Namespace:
         "--verbose", action="store_true", help="Affiche des messages de debug détaillés"
     )
 
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
 
     # Si aucun format de sortie n'est spécifié, activer JSON par défaut
     if not (args.json or args.html or args.md):
