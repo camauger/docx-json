@@ -25,22 +25,12 @@ warnings.warn(
 )
 
 # Importer les fonctions depuis les nouveaux emplacements pour maintenir la compatibilité API
-from docx_json.cli.arguments import get_conversion_formats, parse_args
-from docx_json.cli.batch import find_docx_files, process_batch
-from docx_json.cli.converter import convert_file, get_output_paths, needs_conversion
 from docx_json.cli.main import main
-from docx_json.core.compatibility import (
-    generate_html,
-    generate_markdown,
-    get_document_json,
-    validate_docx,
-)
-from docx_json.exceptions import ConversionError, DocxValidationError
 
 # Exécuter la fonction principale si appelé directement
 if __name__ == "__main__":
     try:
-        exit_code = main()
+        exit_code: int = main()
         sys.exit(exit_code)
     except KeyboardInterrupt:
         print("\nOpération annulée par l'utilisateur.")

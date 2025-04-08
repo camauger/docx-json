@@ -2,24 +2,39 @@
 # -*- coding: utf-8 -*-
 
 """
-Définitions des exceptions personnalisées pour le package docx_json
+Exceptions personnalisées pour le module docx_json.
 """
 
 
 class DocxJsonError(Exception):
-    """Exception de base pour toutes les erreurs du package docx_json."""
+    """Exception de base pour toutes les erreurs du module docx_json."""
 
     pass
 
 
 class DocxValidationError(DocxJsonError):
-    """Exception levée quand un document DOCX est invalide ou ne peut pas être ouvert."""
+    """Exception levée lorsque le document DOCX n'est pas valide."""
+
+    def __init__(
+        self, message="The DOCX file is invalid or corrupted", *args, **kwargs
+    ):
+        super().__init__(message, *args, **kwargs)
+
+
+class ConversionError(DocxJsonError):
+    """Exception levée lorsqu'une erreur survient pendant la conversion du document."""
 
     pass
 
 
-class ConversionError(DocxJsonError):
-    """Exception levée quand la conversion échoue pour une raison quelconque."""
+class OutputGenerationError(ConversionError):
+    """Exception levée lorsqu'une erreur survient pendant la génération du fichier de sortie."""
+
+    pass
+
+
+class ImageHandlingError(ConversionError):
+    """Exception levée lors d'erreurs liées au traitement des images."""
 
     pass
 

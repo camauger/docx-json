@@ -19,6 +19,7 @@ from docx.table import Table
 from docx.text.paragraph import Paragraph
 
 from docx_json.core.converter import DocxConverter, HTMLGenerator
+from docx_json.exceptions import DocxValidationError
 from docx_json.models.elements import (
     Block,
     Component,
@@ -289,25 +290,27 @@ def generate_markdown(json_data: Dict[str, Any]) -> str:
 
 def validate_docx(docx_path: str) -> bool:
     """
-    Vérifie si le fichier est un document DOCX valide.
+    Validates if a file is a valid DOCX document.
 
     Args:
-        docx_path: Chemin vers le fichier DOCX à valider
+        docx_path: Path to the DOCX file to validate
 
     Returns:
-        bool: True si le fichier est un DOCX valide, False sinon
+        bool: True if the file is a valid DOCX document, False otherwise
+
+    Raises:
+        DocxValidationError: When the file doesn't exist, has wrong extension, or can't be opened
     """
     if not os.path.exists(docx_path):
-        return False
+        raise DocxValidationError(f"File not found: {docx_path}")
 
     if not docx_path.lower().endswith(".docx"):
-        return False
+        raise DocxValidationError(f"Invalid file extension: {docx_path}")
 
     try:
-        # Tenter d'ouvrir le document avec python-docx
         from docx import Document
 
         Document(docx_path)
         return True
-    except Exception:
-        return False
+    except Exception as e:
+        raise DocxValidationError(f"Invalid DOCX file: {e}") from e

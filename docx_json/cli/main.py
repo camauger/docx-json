@@ -6,9 +6,11 @@ Point d'entrée principal pour la ligne de commande docx_json
 -----------------------------------------------------------
 """
 
+import argparse
 import logging
 import os
 import sys
+from typing import Tuple
 
 from docx_json.cli.arguments import get_conversion_formats, parse_args
 from docx_json.cli.batch import process_batch
@@ -25,19 +27,16 @@ def main() -> int:
         int: Code de sortie (0 pour succès, 1 pour erreur)
     """
     # Traiter les arguments
-    args = parse_args()
+    args: argparse.Namespace = parse_args()
 
     # Configurer le logging
-    log_level = logging.DEBUG if args.verbose else logging.INFO
-    if args.quiet:
-        log_level = logging.ERROR
     setup_logging(args.verbose)
 
     # Variables communes
-    input_path = args.input_file
-    output_dir = args.output_dir
-    save_images = not args.no_save_images
-    formats = get_conversion_formats(args)
+    input_path: str = args.input_file
+    output_dir: str = args.output_dir
+    save_images: bool = not args.no_save_images
+    formats: Tuple[bool, bool, bool] = get_conversion_formats(args)
 
     # Vérifier que le chemin d'entrée existe
     if not os.path.exists(input_path):
@@ -81,7 +80,7 @@ def main() -> int:
             return 1
 
         # Convertir le fichier
-        success = convert_file(
+        success: bool = convert_file(
             input_path,
             output_dir=output_dir,
             prefix=args.output_prefix,
@@ -99,7 +98,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     try:
-        exit_code = main()
+        exit_code: int = main()
         sys.exit(exit_code)
     except KeyboardInterrupt:
         print("\nOpération annulée par l'utilisateur.")

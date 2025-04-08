@@ -11,7 +11,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from docx_json.core.compatibility import (
     generate_html,
@@ -44,7 +44,7 @@ def get_output_paths(
     """
     # Utiliser Path pour une meilleure manipulation des chemins
     input_path = Path(docx_path)
-    base_name = input_path.stem
+    base_name: str = input_path.stem
 
     # Appliquer préfixe et suffixe si spécifiés
     if prefix:
@@ -59,7 +59,7 @@ def get_output_paths(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Générer les chemins
-    paths = {}
+    paths: Dict[str, str] = {}
     if formats[0]:  # JSON
         paths["json"] = str(out_dir / f"{base_name}.json")
     if formats[1]:  # HTML
@@ -86,8 +86,8 @@ def needs_conversion(input_path: str, output_path: str) -> bool:
         return True
 
     # Comparer les dates de modification
-    input_mtime = os.path.getmtime(input_path)
-    output_mtime = os.path.getmtime(output_path)
+    input_mtime: float = os.path.getmtime(input_path)
+    output_mtime: float = os.path.getmtime(output_path)
 
     # Si le fichier d'entrée est plus récent, conversion nécessaire
     return input_mtime > output_mtime
@@ -125,7 +125,9 @@ def convert_file(
     """
     try:
         # Générer les chemins de sortie
-        output_paths = get_output_paths(docx_path, output_dir, prefix, suffix, formats)
+        output_paths: Dict[str, str] = get_output_paths(
+            docx_path, output_dir, prefix, suffix, formats
+        )
 
         # Vérifier si les fichiers existent déjà et si on doit les ignorer
         if skip_existing and not force:
@@ -155,7 +157,9 @@ def convert_file(
         logging.info(f"Traitement du fichier '{docx_path}'...")
 
         # Convertir le document
-        json_data = get_document_json(docx_path, output_dir, save_images)
+        json_data: Dict[str, Any] = get_document_json(
+            docx_path, output_dir, save_images
+        )
 
         # Générer et sauvegarder le JSON si demandé
         if formats[0]:  # JSON

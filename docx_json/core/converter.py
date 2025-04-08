@@ -540,12 +540,15 @@ class DocxConverter:
 
         return result
 
-    def generate_html(self, json_data: Dict[str, Any]) -> str:
+    def generate_html(
+        self, json_data: Dict[str, Any], css_path: Optional[str] = None
+    ) -> str:
         """
         Génère un document HTML à partir de la structure JSON.
 
         Args:
             json_data: Dictionnaire représentant le document
+            css_path: Chemin vers un fichier CSS personnalisé (optionnel)
 
         Returns:
             Une chaîne de caractères contenant le HTML
@@ -553,6 +556,16 @@ class DocxConverter:
         logging.info("Génération du HTML...")
 
         html_generator = HTMLGenerator(json_data)
+
+        # Si un CSS personnalisé est fourni, le charger
+        if css_path and os.path.exists(css_path):
+            try:
+                with open(css_path, "r", encoding="utf-8") as f:
+                    custom_css = f.read()
+                return html_generator.generate(custom_css=custom_css)
+            except Exception as e:
+                logging.warning(f"Impossible de charger le CSS personnalisé: {str(e)}")
+
         return html_generator.generate()
 
     def generate_markdown(self, json_data: Dict[str, Any]) -> str:
