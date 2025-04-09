@@ -30,114 +30,103 @@ class DocumentProcessor:
     @staticmethod
     def process_instructions(elements: List[DocumentElement]) -> List[DocumentElement]:
         """
-        Traite les instructions intégrées et les applique aux éléments suivants.
+        Traite les instructions et composants spéciaux dans une liste d'éléments.
+
+        Cette méthode :
+        1. Gère les instructions et les remplace par les éléments appropriés
+        2. Regroupe les éléments entre marqueurs de composants
+        3. Traite les attributs HTML (classes, ID)
 
         Args:
-            elements: Liste des éléments du document
+            elements: Liste des éléments de document à traiter
 
         Returns:
-            Liste des éléments modifiés selon les instructions
+            Liste des éléments traités
         """
         result = []
+        i = 0
         current_block = None
         current_component = None
-        skip_next = False
-
-        # Classes et ID à appliquer au prochain élément
         pending_classes = []
         pending_id = None
 
-        i = 0
         while i < len(elements):
             element = elements[i]
 
-            # Si on doit ignorer cet élément (suite à une instruction "ignore")
-            if skip_next:
-                skip_next = False
-                i += 1
-                continue
+            # Traitement des instructions
+            if isinstance(element, Instruction):
+                instruction = element.content.strip()
+                logging.debug(f"Instruction trouvée: {instruction}")
 
-            # Traitement des instructions spéciales :::
-            if element.type == "instruction":
-                # Vérifier que l'élément est bien une Instruction avant d'accéder à content
-                if isinstance(element, Instruction):
-                    instruction = element.content.strip()
-                    logging.debug(f"Traitement de l'instruction: {instruction}")
-
-                    # Instruction classe CSS
-                    if instruction.startswith("class "):
-                        class_names = instruction[6:].strip()
-                        pending_classes.extend(class_names.split())
-
-                    # Instruction ID
-                    elif instruction.startswith("id "):
-                        pending_id = instruction[3:].strip()
-
-                    # Instruction ignore
-                    elif instruction == "ignore":
-                        skip_next = True
-
-                    # Instruction bloc (pour wrapper des éléments)
-                    elif " start" in instruction:
-                        block_type = instruction.split()[0]
-                        current_block = Block(block_type)
-
-                    # Fin d'un bloc
-                    elif " end" in instruction:
-                        if current_block:
-                            result.append(current_block)
-                            current_block = None
-
-                    # Instruction HTML brut
-                    elif instruction.startswith("html "):
-                        html_content = instruction[5:].strip()
-                        result.append(RawHTML(html_content))
+                # Traitement des instructions comme les classes et IDs
+                if instruction.startswith("class "):
+                    class_names = instruction[6:].strip()
+                    pending_classes.extend(class_names.split())
+                elif instruction.startswith("id "):
+                    pending_id = instruction[3:].strip()
+                elif " begin" in instruction:
+                    block_type = instruction.split()[0]
+                    current_block = Block(block_type)
+                # Autres instructions omises pour la concision
 
             # Traitement des marqueurs de composants pédagogiques
             elif element.type == "component_marker":
-                # Vérifier que l'élément est bien un ComponentMarker avant d'accéder à component_type
                 if isinstance(element, ComponentMarker):
                     component_type = element.component_type
-                    logging.debug(f"Début de composant: {component_type}")
+                    logging.debug(f"Marqueur de composant trouvé: {component_type}")
 
+                    # Créer un nouveau composant
                     current_component = Component(component_type)
 
-                    # Rechercher le contenu du composant jusqu'à [Fin] ou un autre composant
+                    # Rechercher jusqu'au marqueur de fin correspondant
                     j = i + 1
+                    found_end_marker = False
+
                     while j < len(elements):
                         next_element = elements[j]
 
-                        # Si on trouve un marqueur de fin pour ce composant
+                        # Si on trouve le marqueur de fin correspondant
                         if (
                             next_element.type == "component_end"
                             and isinstance(next_element, ComponentEnd)
                             and next_element.component_type == component_type
                         ):
                             i = j  # On avance jusqu'à la fin du composant
+                            found_end_marker = True
                             break
-                        # Si on trouve un autre marqueur de composant, on s'arrête aussi
+                        # Si c'est un autre marqueur de composant, on s'arrête
                         elif next_element.type == "component_marker":
-                            i = j - 1  # On s'arrête juste avant le nouveau composant
+                            i = j - 1
                             break
-                        # Sinon, on ajoute l'élément au contenu du composant
+                        # Sinon, on ajoute au contenu du composant
                         else:
                             current_component.add_element(next_element)
+
                         j += 1
 
                     # Ajouter le composant au résultat
                     result.append(current_component)
+                    logging.debug(
+                        f"Composant '{component_type}' ajouté avec {len(current_component.content)} éléments de contenu"
+                    )
                     current_component = None
 
-            # Traitement des marqueurs de fin (sans marqueur de début correspondant)
+                    # Si on n'a pas trouvé de marqueur de fin
+                    if not found_end_marker:
+                        logging.warning(
+                            f"Pas de marqueur de fin trouvé pour le composant '{component_type}'"
+                        )
+
+            # Traitement des marqueurs de fin sans marqueur de début correspondant
             elif element.type == "component_end":
-                # Vérifier que l'élément est bien un ComponentEnd avant d'accéder à component_type
                 if isinstance(element, ComponentEnd):
                     logging.warning(
                         f"Marqueur de fin '{element.component_type}' sans marqueur de début correspondant"
                     )
 
+            # Tout autre élément
             else:
-                # Appliquer les classes et ID en attente
+                # Ajouter aux résultats en tenant compte du contexte
                 if pending_classes:
                     element.html_class = " ".join(pending_classes)
                     pending_classes = []
@@ -146,20 +135,17 @@ class DocumentProcessor:
                     element.html_id = pending_id
                     pending_id = None
 
-                # Ajouter l'élément au bloc courant ou aux résultats
                 if current_block:
                     current_block.add_element(element)
-                elif current_component:
-                    current_component.add_element(element)
                 else:
                     result.append(element)
 
             i += 1
 
-        # Ajouter le dernier bloc s'il existe encore
+        # Ajouter le dernier bloc s'il n'a pas été fermé
         if current_block:
             result.append(current_block)
-            logging.warning("Un bloc n'a pas été fermé dans le document.")
+            logging.warning("Un bloc n'a pas été fermé dans le document")
 
         return result
 

@@ -5,6 +5,8 @@ from docx.text.paragraph import Paragraph
 
 from docx_json.core.docx_parser import DocxParser
 from docx_json.core.html_renderer import HTMLGenerator
+from docx_json.core.processor import DocumentProcessor
+from docx_json.models import Component
 
 
 def create_test_document() -> None:
@@ -164,10 +166,28 @@ def create_test_document() -> None:
     parser = DocxParser("test_document.docx", ".")
     elements = parser.parse()
 
+    # Traiter les instructions et les composants
+    processed_elements = DocumentProcessor.process_instructions(elements)
+
+    # Imprimer le nombre d'éléments pour déboguer
+    print(f"Nombre d'éléments avant traitement: {len(elements)}")
+    print(f"Nombre d'éléments après traitement: {len(processed_elements)}")
+
+    # Vérifier les types d'éléments après traitement
+    component_count = 0
+    for element in processed_elements:
+        if element.type == "component" and isinstance(element, Component):
+            component_count += 1
+            print(
+                f"Composant trouvé: {element.component_type} avec {len(element.content)} éléments"
+            )
+
+    print(f"Nombre de composants trouvés: {component_count}")
+
     # Créer la structure JSON pour le générateur HTML
     json_data = {
         "meta": {"title": "Document de Test"},
-        "content": [element.to_dict() for element in elements],
+        "content": [element.to_dict() for element in processed_elements],
         "images": parser.get_images(),
     }
 

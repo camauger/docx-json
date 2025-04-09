@@ -22,19 +22,48 @@ class ComponentRenderer(ElementRenderer):
         }
 
     def render(self, element: Dict[str, Any], indent_level: int = 0) -> List[str]:
-        # Extraire le type de composant du texte du premier run
-        if not element.get("runs"):
+        """
+        Rend un composant en HTML.
+
+        Args:
+            element: Données du composant
+            indent_level: Niveau d'indentation
+
+        Returns:
+            Liste de lignes HTML
+        """
+        # Si c'est un composant complet avec un type défini
+        if element["type"] == "component" and "component_type" in element:
+            component_type = element["component_type"]
+            renderer = self.component_renderers.get(component_type)
+
+            if renderer:
+                return renderer(element, indent_level)
+
+        # Si c'est un marqueur de début de composant
+        elif element["type"] == "component_marker" and "component_type" in element:
+            # Pour les marqueurs seuls, on ne rend rien (ils seront traités par process_instructions)
             return []
 
-        component_type = element["runs"][0]["text"].strip("[]").split(" ")[0]
-        renderer = self.component_renderers.get(component_type)
+        # Si c'est un marqueur de fin de composant
+        elif element["type"] == "component_end" and "component_type" in element:
+            # Pour les marqueurs de fin seuls, on ne rend rien
+            return []
 
-        if renderer:
-            return renderer(element, indent_level)
-        else:
-            return self._render_generic(element, indent_level)
+        # Rendu générique pour les composants non reconnus
+        return self._render_generic(element, indent_level)
 
     def _render_video(self, element: Dict[str, Any], indent_level: int) -> List[str]:
+        """
+        Rend un composant Vidéo en HTML.
+
+        Args:
+            element: Données du composant
+            indent_level: Niveau d'indentation
+
+        Returns:
+            Liste de lignes HTML
+        """
         indent = " " * indent_level
         element_html = [
             f'{indent}<div class="ratio ratio-16x9 my-4">',
@@ -44,18 +73,36 @@ class ComponentRenderer(ElementRenderer):
         ]
 
         has_content = False
-        for content_elem in element["content"]:
-            content = self.html_generator._generate_element_html(
-                content_elem, indent_level=indent_level + 2
-            )
-            if content:
-                has_content = True
-                element_html.extend(content)
+        # S'assurer que l'élément a du contenu
+        if "content" in element and element["content"]:
+            for content_elem in element["content"]:
+                # Générer le HTML pour l'élément de contenu
+                content_html = self.html_generator._generate_element_html(
+                    content_elem, indent_level=indent_level + 2
+                )
+
+                # S'assurer que le contenu est une liste de chaînes
+                if content_html and isinstance(content_html, list):
+                    has_content = True
+                    # N'ajouter que les éléments valides
+                    for item in content_html:
+                        if isinstance(item, str):
+                            element_html.append(item)
 
         element_html.append(f"{indent}</div>")
         return element_html
 
     def _render_audio(self, element: Dict[str, Any], indent_level: int) -> List[str]:
+        """
+        Rend un composant Audio en HTML.
+
+        Args:
+            element: Données du composant
+            indent_level: Niveau d'indentation
+
+        Returns:
+            Liste de lignes HTML
+        """
         indent = " " * indent_level
         element_html = [
             f'{indent}<div class="my-4">',
@@ -68,13 +115,21 @@ class ComponentRenderer(ElementRenderer):
         ]
 
         has_content = False
-        for content_elem in element["content"]:
-            content = self.html_generator._generate_element_html(
-                content_elem, indent_level=indent_level + 2
-            )
-            if content:
-                has_content = True
-                element_html.extend(content)
+        # S'assurer que l'élément a du contenu
+        if "content" in element and element["content"]:
+            for content_elem in element["content"]:
+                # Générer le HTML pour l'élément de contenu
+                content_html = self.html_generator._generate_element_html(
+                    content_elem, indent_level=indent_level + 2
+                )
+
+                # S'assurer que le contenu est une liste de chaînes
+                if content_html and isinstance(content_html, list):
+                    has_content = True
+                    # N'ajouter que les éléments valides
+                    for item in content_html:
+                        if isinstance(item, str):
+                            element_html.append(item)
 
         element_html.append(f"{indent}</div>")
         return element_html
@@ -82,12 +137,22 @@ class ComponentRenderer(ElementRenderer):
     def _render_accordion(
         self, element: Dict[str, Any], indent_level: int
     ) -> List[str]:
+        """
+        Rend un composant Accordéon en HTML.
+
+        Args:
+            element: Données du composant
+            indent_level: Niveau d'indentation
+
+        Returns:
+            Liste de lignes HTML
+        """
         indent = " " * indent_level
-        accordion_id = element.get("html_id", "mainAccordion")
+        accordion_id = element.get("html_id", f"accordion-{id(element)}")
 
         # Commencer l'accordéon
         element_html = [
-            f'{indent}<div class="accordion" id="{accordion_id}">',
+            f'{indent}<div class="accordion my-4" id="{accordion_id}">',
         ]
 
         # Parcourir les éléments pour créer les items de l'accordéon
@@ -95,35 +160,45 @@ class ComponentRenderer(ElementRenderer):
         item_count = 0
         item_content = []
 
-        for content_elem in element["content"]:
-            if content_elem["type"] == "heading":
-                # Si nous avons un item en cours, l'ajouter à l'accordéon
-                if current_item and item_content:
-                    element_html.extend(
-                        self._create_accordion_item(
-                            accordion_id, item_count, current_item, item_content, indent
+        # Vérifier que l'élément a du contenu
+        if "content" in element and element["content"]:
+            for content_elem in element["content"]:
+                if content_elem["type"] == "heading":
+                    # Si nous avons un item en cours, l'ajouter à l'accordéon
+                    if current_item and item_content:
+                        item_count += 1
+                        element_html.extend(
+                            self._create_accordion_item(
+                                accordion_id,
+                                item_count,
+                                current_item,
+                                item_content,
+                                indent,
+                            )
                         )
+                        item_content = []
+
+                    # Commencer un nouvel item avec le titre du heading
+                    if "runs" in content_elem:
+                        current_item = "".join(self._format_runs(content_elem["runs"]))
+                else:
+                    # Générer le HTML pour l'élément de contenu
+                    content_html = self.html_generator._generate_element_html(
+                        content_elem, indent_level=indent_level + 6
                     )
-                    item_content = []
-                    item_count += 1
 
-                # Commencer un nouvel item
-                current_item = "".join(self._format_runs(content_elem["runs"]))
-            else:
-                # Ajouter le contenu à l'item en cours
-                content = self.html_generator._generate_element_html(
-                    content_elem, indent_level=indent_level + 6
-                )
-                if content:
-                    item_content.extend(content)
+                    # S'assurer que le contenu est une liste de chaînes
+                    if content_html and isinstance(content_html, list):
+                        item_content.extend(content_html)
 
-        # Ajouter le dernier item s'il existe
-        if current_item and item_content:
-            element_html.extend(
-                self._create_accordion_item(
-                    accordion_id, item_count, current_item, item_content, indent
+            # Ajouter le dernier item s'il existe
+            if current_item and item_content:
+                item_count += 1
+                element_html.extend(
+                    self._create_accordion_item(
+                        accordion_id, item_count, current_item, item_content, indent
+                    )
                 )
-            )
 
         element_html.append(f"{indent}</div>")
         return element_html
@@ -133,10 +208,30 @@ class ComponentRenderer(ElementRenderer):
         accordion_id: str,
         item_count: int,
         title: str,
-        content_items: List,
+        content_items: List[str],
         indent: str,
     ) -> List[str]:
+        """
+        Crée un élément d'accordéon.
+
+        Args:
+            accordion_id: ID de l'accordéon
+            item_count: Numéro de l'élément
+            title: Titre de l'élément
+            content_items: Liste des éléments de contenu
+            indent: Indentation
+
+        Returns:
+            Liste de lignes HTML
+        """
         item_id = f"{accordion_id}-item-{item_count}"
+
+        # S'assurer que tous les éléments de contenu sont des chaînes
+        final_content = []
+        for item in content_items:
+            if isinstance(item, str):
+                final_content.append(item)
+
         return [
             f'{indent}  <div class="accordion-item">',
             f'{indent}    <h2 class="accordion-header" id="heading-{item_id}">',
@@ -146,89 +241,23 @@ class ComponentRenderer(ElementRenderer):
             f"{indent}    </h2>",
             f'{indent}    <div id="collapse-{item_id}" class="accordion-collapse collapse" aria-labelledby="heading-{item_id}" data-bs-parent="#{accordion_id}">',
             f'{indent}      <div class="accordion-body">',
-            *[item for sublist in content_items for item in sublist],
+            *final_content,
             f"{indent}      </div>",
             f"{indent}    </div>",
             f"{indent}  </div>",
         ]
 
-    def _render_carousel(self, element: Dict[str, Any], indent_level: int) -> List[str]:
-        indent = " " * indent_level
-        carousel_id = element.get("html_id", "mainCarousel")
-
-        # Commencer le carrousel
-        element_html = [
-            f'{indent}<div id="{carousel_id}" class="carousel slide" data-bs-ride="carousel">',
-            f'{indent}  <div class="carousel-indicators">',
-        ]
-
-        # Collecter les diapositives
-        slides = []
-        slide_count = 0
-        current_slide = None
-        slide_content = []
-
-        # Ajouter les indicateurs
-        for content_elem in element["content"]:
-            if content_elem["type"] == "heading":
-                if current_slide and slide_content:
-                    slides.append((current_slide, slide_content))
-                    slide_content = []
-                current_slide = "".join(self._format_runs(content_elem["runs"]))
-            else:
-                content = self.html_generator._generate_element_html(
-                    content_elem, indent_level=indent_level + 6
-                )
-                if content:
-                    slide_content.extend(content)
-
-        # Ajouter la dernière diapositive
-        if current_slide and slide_content:
-            slides.append((current_slide, slide_content))
-
-        # Générer les indicateurs
-        for i in range(len(slides)):
-            active = " active" if i == 0 else ""
-            element_html.append(
-                f'{indent}    <button type="button" data-bs-target="#{carousel_id}" data-bs-slide-to="{i}"{active} aria-label="Diapositive {i + 1}"></button>'
-            )
-
-        element_html.append(f"{indent}  </div>")
-        element_html.append(f'{indent}  <div class="carousel-inner">')
-
-        # Générer les diapositives
-        for i, (title, content) in enumerate(slides):
-            active = " active" if i == 0 else ""
-            element_html.extend(
-                [
-                    f'{indent}    <div class="carousel-item{active}">',
-                    f'{indent}      <div class="carousel-content p-4">',
-                    f"{indent}        <h4>{title}</h4>",
-                    *[item for sublist in content for item in sublist],
-                    f"{indent}      </div>",
-                    f"{indent}    </div>",
-                ]
-            )
-
-        # Ajouter les contrôles
-        element_html.extend(
-            [
-                f"{indent}  </div>",
-                f'{indent}  <button class="carousel-control-prev" type="button" data-bs-target="#{carousel_id}" data-bs-slide="prev">',
-                f'{indent}    <span class="carousel-control-prev-icon" aria-hidden="true"></span>',
-                f'{indent}    <span class="visually-hidden">Précédent</span>',
-                f"{indent}  </button>",
-                f'{indent}  <button class="carousel-control-next" type="button" data-bs-target="#{carousel_id}" data-bs-slide="next">',
-                f'{indent}    <span class="carousel-control-next-icon" aria-hidden="true"></span>',
-                f'{indent}    <span class="visually-hidden">Suivant</span>',
-                f"{indent}  </button>",
-                f"{indent}</div>",
-            ]
-        )
-
-        return element_html
-
     def _render_tabs(self, element: Dict[str, Any], indent_level: int) -> List[str]:
+        """
+        Rend un composant Onglets en HTML.
+
+        Args:
+            element: Données du composant
+            indent_level: Niveau d'indentation
+
+        Returns:
+            Liste de lignes HTML
+        """
         indent = " " * indent_level
         tabs_id = element.get("html_id", "mainTabs")
 
@@ -243,57 +272,170 @@ class ComponentRenderer(ElementRenderer):
         current_tab = None
         tab_content = []
 
-        for content_elem in element["content"]:
-            if content_elem["type"] == "heading":
-                if current_tab and tab_content:
-                    tabs.append((current_tab, tab_content))
-                    tab_content = []
-                current_tab = "".join(self._format_runs(content_elem["runs"]))
-            else:
-                content = self.html_generator._generate_element_html(
-                    content_elem, indent_level=indent_level + 6
+        # S'assurer que l'élément a du contenu
+        if "content" in element and element["content"]:
+            for content_elem in element["content"]:
+                if content_elem["type"] == "heading":
+                    if current_tab and tab_content:
+                        tabs.append((current_tab, tab_content))
+                        tab_content = []
+
+                    if "runs" in content_elem:
+                        current_tab = "".join(self._format_runs(content_elem["runs"]))
+                else:
+                    # Générer le HTML pour l'élément de contenu
+                    content_html = self.html_generator._generate_element_html(
+                        content_elem, indent_level=indent_level + 6
+                    )
+
+                    # S'assurer que le contenu est une liste de chaînes
+                    if content_html and isinstance(content_html, list):
+                        tab_content.extend(content_html)
+
+            # Ajouter le dernier onglet
+            if current_tab and tab_content:
+                tabs.append((current_tab, tab_content))
+
+            # Générer les boutons d'onglets
+            for i, (title, _) in enumerate(tabs):
+                tab_id = f"{tabs_id}-tab-{i}"
+                active = " active" if i == 0 else ""
+                selected = "true" if i == 0 else "false"
+                element_html.append(
+                    f'{indent}    <li class="nav-item" role="presentation">',
                 )
-                if content:
-                    tab_content.extend(content)
+                element_html.append(
+                    f'{indent}      <button class="nav-link{active}" id="{tab_id}" data-bs-toggle="tab" data-bs-target="#{tab_id}-pane" type="button" role="tab" aria-controls="{tab_id}-pane" aria-selected="{selected}">{title}</button>',
+                )
+                element_html.append(
+                    f"{indent}    </li>",
+                )
 
-        # Ajouter le dernier onglet
-        if current_tab and tab_content:
-            tabs.append((current_tab, tab_content))
-
-        # Générer les boutons d'onglets
-        for i, (title, _) in enumerate(tabs):
-            tab_id = f"{tabs_id}-tab-{i}"
-            active = " active" if i == 0 else ""
-            selected = "true" if i == 0 else "false"
+            element_html.append(f"{indent}  </ul>")
             element_html.append(
-                f'{indent}    <li class="nav-item" role="presentation">'
-                f'{indent}      <button class="nav-link{active}" id="{tab_id}" data-bs-toggle="tab" data-bs-target="#{tab_id}-pane" type="button" role="tab" aria-controls="{tab_id}-pane" aria-selected="{selected}">{title}</button>'
-                f"{indent}    </li>"
+                f'{indent}  <div class="tab-content" id="{tabs_id}-content">'
             )
 
-        element_html.append(f"{indent}  </ul>")
-        element_html.append(
-            f'{indent}  <div class="tab-content" id="{tabs_id}-content">'
-        )
+            # Générer le contenu des onglets
+            for i, (title, content) in enumerate(tabs):
+                tab_id = f"{tabs_id}-tab-{i}"
+                active = " show active" if i == 0 else ""
 
-        # Générer le contenu des onglets
-        for i, (title, content) in enumerate(tabs):
-            tab_id = f"{tabs_id}-tab-{i}"
-            active = " show active" if i == 0 else ""
+                # Filtrer les éléments invalides
+                filtered_content = []
+                for item in content:
+                    if isinstance(item, str):
+                        filtered_content.append(item)
+
+                element_html.extend(
+                    [
+                        f'{indent}    <div class="tab-pane fade{active}" id="{tab_id}-pane" role="tabpanel" aria-labelledby="{tab_id}" tabindex="0">',
+                        f'{indent}      <div class="p-4">',
+                        *filtered_content,
+                        f"{indent}      </div>",
+                        f"{indent}    </div>",
+                    ]
+                )
+
+        element_html.extend([f"{indent}  </div>", f"{indent}</div>"])
+
+        return element_html
+
+    def _render_carousel(self, element: Dict[str, Any], indent_level: int) -> List[str]:
+        """
+        Rend un composant Carrousel en HTML.
+
+        Args:
+            element: Données du composant
+            indent_level: Niveau d'indentation
+
+        Returns:
+            Liste de lignes HTML
+        """
+        indent = " " * indent_level
+        carousel_id = element.get("html_id", "mainCarousel")
+
+        # Commencer le carrousel
+        element_html = [
+            f'{indent}<div id="{carousel_id}" class="carousel slide" data-bs-ride="carousel">',
+        ]
+
+        # Collecter les diapositives
+        slides = []
+        current_slide = None
+        slide_content = []
+
+        # S'assurer que l'élément a du contenu
+        if "content" in element and element["content"]:
+            for content_elem in element["content"]:
+                if content_elem["type"] == "heading":
+                    if current_slide and slide_content:
+                        slides.append((current_slide, slide_content))
+                        slide_content = []
+
+                    if "runs" in content_elem:
+                        current_slide = "".join(self._format_runs(content_elem["runs"]))
+                else:
+                    # Générer le HTML pour l'élément de contenu
+                    content_html = self.html_generator._generate_element_html(
+                        content_elem, indent_level=indent_level + 6
+                    )
+
+                    # S'assurer que le contenu est une liste de chaînes
+                    if content_html and isinstance(content_html, list):
+                        slide_content.extend(content_html)
+
+            # Ajouter la dernière diapositive
+            if current_slide and slide_content:
+                slides.append((current_slide, slide_content))
+
+            # Générer les indicateurs
+            element_html.append(f'{indent}  <div class="carousel-indicators">')
+            for i, (title, _) in enumerate(slides):
+                active = " active" if i == 0 else ""
+                element_html.append(
+                    f'{indent}    <button type="button" data-bs-target="#{carousel_id}" data-bs-slide-to="{i}"{active} aria-label="{title}"></button>'
+                )
+            element_html.append(f"{indent}  </div>")
+
+            # Générer le contenu du carrousel
+            element_html.append(f'{indent}  <div class="carousel-inner">')
+            for i, (title, content) in enumerate(slides):
+                active = " active" if i == 0 else ""
+
+                # Filtrer les éléments invalides
+                filtered_content = []
+                for item in content:
+                    if isinstance(item, str):
+                        filtered_content.append(item)
+
+                element_html.extend(
+                    [
+                        f'{indent}    <div class="carousel-item{active}">',
+                        f'{indent}      <div class="carousel-content p-4">',
+                        f"{indent}        <h4>{title}</h4>",
+                        *filtered_content,
+                        f"{indent}      </div>",
+                        f"{indent}    </div>",
+                    ]
+                )
+            element_html.append(f"{indent}  </div>")
+
+            # Ajouter les contrôles de navigation
             element_html.extend(
                 [
-                    f'{indent}    <div class="tab-pane fade{active}" id="{tab_id}-pane" role="tabpanel" aria-labelledby="{tab_id}" tabindex="0">',
-                    f'{indent}      <div class="p-4">',
-                    *[item for sublist in content for item in sublist],
-                    f"{indent}      </div>",
-                    f"{indent}    </div>",
+                    f'{indent}  <button class="carousel-control-prev" type="button" data-bs-target="#{carousel_id}" data-bs-slide="prev">',
+                    f'{indent}    <span class="carousel-control-prev-icon" aria-hidden="true"></span>',
+                    f'{indent}    <span class="visually-hidden">Précédent</span>',
+                    f"{indent}  </button>",
+                    f'{indent}  <button class="carousel-control-next" type="button" data-bs-target="#{carousel_id}" data-bs-slide="next">',
+                    f'{indent}    <span class="carousel-control-next-icon" aria-hidden="true"></span>',
+                    f'{indent}    <span class="visually-hidden">Suivant</span>',
+                    f"{indent}  </button>",
                 ]
             )
 
-        element_html.extend(
-            [f"{indent}    </div>", f"{indent}  </div>", f"{indent}</div>"]
-        )
-
+        element_html.append(f"{indent}</div>")
         return element_html
 
     def _render_scrollspy(

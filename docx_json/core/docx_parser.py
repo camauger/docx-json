@@ -224,9 +224,8 @@ class DocxParser:
             match = re.match(component_pattern, text)
             if match:
                 component_type = match.group(1).strip()
-                attributes_str = match.group(2) or ""
 
-                # Créer un ComponentMarker avec les attributs
+                # Vérifier si c'est un marqueur de début ou de fin de composant
                 if component_type in [
                     "Vidéo",
                     "Audio",
@@ -235,9 +234,17 @@ class DocxParser:
                     "Onglets",
                     "Défilement",
                 ]:
+                    logging.debug(
+                        f"Marqueur de début de composant détecté: {component_type}"
+                    )
                     return ComponentMarker(component_type=component_type)
-                elif component_type.endswith("Fin"):
-                    return ComponentEnd(component_type=component_type)
+                elif component_type.startswith("Fin "):
+                    # Extraire le type de composant sans le "Fin "
+                    end_component_type = component_type[4:].strip()
+                    logging.debug(
+                        f"Marqueur de fin de composant détecté: {end_component_type}"
+                    )
+                    return ComponentEnd(component_type=end_component_type)
 
         # Vérifier si c'est une image
         if any(
