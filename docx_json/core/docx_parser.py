@@ -276,6 +276,29 @@ class DocxParser:
                 image.image_path = image_data["image_path"]
             return image
 
+        # Vérifier s'il y a des images intégrées dans les runs du paragraphe
+        paragraph_images = []
+        for run in paragraph.runs:
+            for blip in run._element.findall(".//a:blip", namespaces=self.NAMESPACES):
+                if (
+                    blip is not None
+                    and blip.get(
+                        "{http://schemas.openxmlformats.org/drawingml/2006/main}embed"
+                    )
+                    is not None
+                ):
+                    image_id = blip.get(
+                        "{http://schemas.openxmlformats.org/drawingml/2006/main}embed"
+                    )
+                    if image_id in self._rels_dict:
+                        image_path = self._rels_dict[image_id]
+                        paragraph_images.append(
+                            {
+                                "path": image_path,
+                                "alt_text": "Image intégrée au paragraphe",
+                            }
+                        )
+
         # Vérifier si c'est une instruction
         if paragraph.text.strip().startswith("{{") and paragraph.text.strip().endswith(
             "}}"
@@ -299,6 +322,11 @@ class DocxParser:
                         underline=bool(run.underline),
                     )
                 )
+
+            # Ajouter les images associées au titre s'il y en a
+            if paragraph_images:
+                heading.add_attribute("images", paragraph_images)
+
             return heading
 
         # Vérifier si c'est un élément de liste
@@ -329,6 +357,11 @@ class DocxParser:
 
             # Ajouter l'élément à la liste
             doc_list.add_item(list_item)
+
+            # Ajouter les images associées à l'élément de liste s'il y en a
+            if paragraph_images:
+                list_item.add_attribute("images", paragraph_images)
+
             return doc_list
 
         # Paragraphe normal
@@ -342,6 +375,11 @@ class DocxParser:
                     underline=bool(run.underline),
                 )
             )
+
+        # Ajouter les images associées au paragraphe s'il y en a
+        if paragraph_images:
+            para.add_attribute("images", paragraph_images)
+
         return para
 
     def parse_table(self, table: DocxTable) -> Table:

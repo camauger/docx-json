@@ -183,7 +183,9 @@ def create_test_document() -> None:
 
     # Diapositive 1 avec image
     doc.add_heading("Diapositive 1", level=4)
-    doc.add_paragraph("Contenu de la première diapositive.")
+    doc.add_paragraph(
+        "Au terme de son parcours scolaire, Thomas accède à une formation technique au niveau collégial. Son intérêt marqué pour les mathématiques et les sciences l’amène à choisir une technique de design industriel. Il envisage aussi de poursuivre des études supérieures en génie industriel. Dans ses loisirs, il participe à des jeux de rôle en ligne et fait partie d’un club de lecture traitant de faits historiques et de sciences."
+    )
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     # Ajouter une image à la première diapositive
@@ -192,30 +194,33 @@ def create_test_document() -> None:
 
     # Diapositive 2 avec image
     doc.add_heading("Diapositive 2", level=4)
-    doc.add_paragraph("Contenu de la deuxième diapositive.")
+    doc.add_paragraph(
+        "Au terme de son parcours scolaire, Maxim intègre, à raison de deux jours par semaine, un plateau supervisé en entreprise adaptée dans son quartier. Il participe à des fins de semaine en camp adapté, à des camps de jour pendant les vacances estivales et à des activités d’intégration une fois par semaine au sein d’un organisme communautaire."
+    )
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     # Ajouter une image à la deuxième diapositive
     run = p.add_run()
-    run.add_picture("test_templates/images/placeholder2.jpg", width=Pt(300))
+    run.add_picture("./test_templates/images/placeholder2.jpg", width=Pt(300))
 
     doc.add_paragraph("[Fin Carrousel]")
 
     # Audio
     doc.add_heading("Audio", level=3)
-    doc.add_paragraph("[Audio]")
     doc.add_paragraph("Titre de l'audio")
-    doc.add_paragraph("Description de l'audio")
+    doc.add_paragraph("[Audio]")
     doc.add_paragraph("[Fin Audio]")
+    doc.add_paragraph("Description de l'audio")
 
     # Vidéo
     doc.add_heading("Vidéo Vimeo", level=3)
     # Utiliser un seul paragraphe avec le format vidéo et l'ID intégré
-    doc.add_paragraph("[Vidéo video_id='1069341210']")
+
     doc.add_paragraph("Titre de la vidéo Vimeo")
     doc.add_paragraph(
         "Cette vidéo est hébergée sur la plateforme Vimeo et intégrée directement dans le document."
     )
+    doc.add_paragraph("[Vidéo video_id='1069341210']")
     doc.add_paragraph("[Fin Vidéo]")
 
     # Sauvegarder le document

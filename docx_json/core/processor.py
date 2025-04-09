@@ -20,6 +20,7 @@ from docx_json.models import (
     Instruction,
     RawHTML,
 )
+from docx_json.models.text import Paragraph
 
 
 class DocumentProcessor:
@@ -102,7 +103,47 @@ class DocumentProcessor:
                     )
                     result.append(element)
             else:
-                # Tout autre élément est ajouté tel quel
+                # Vérifier si c'est un paragraphe contenant un marqueur [Vidéo] directement
+                if element.type == "paragraph" and isinstance(element, Paragraph):
+                    # Extraire le texte complet du paragraphe
+                    full_text = ""
+                    for run in element.runs:
+                        full_text += run.text
+
+                    # Vérifier si c'est un marqueur de vidéo
+                    if full_text.startswith("[Vidéo") and "]" in full_text:
+                        # Créer un composant vidéo
+                        print(
+                            f"Création d'un composant Vidéo à partir du marqueur: {full_text}"
+                        )
+                        component = Component("Vidéo")
+
+                        # Extraire l'ID de vidéo
+                        video_id = None
+
+                        # Rechercher video_id avec quotes simples
+                        if "video_id='" in full_text:
+                            start_idx = full_text.find("video_id='") + 10
+                            end_idx = full_text.find("'", start_idx)
+                            if end_idx > start_idx:
+                                video_id = full_text[start_idx:end_idx]
+
+                        # Rechercher video_id avec quotes doubles
+                        elif 'video_id="' in full_text:
+                            start_idx = full_text.find('video_id="') + 10
+                            end_idx = full_text.find('"', start_idx)
+                            if end_idx > start_idx:
+                                video_id = full_text[start_idx:end_idx]
+
+                        # Ajouter l'ID comme attribut
+                        if video_id:
+                            component.add_attribute("video_id", video_id)
+
+                        # Ajouter au résultat
+                        result.append(component)
+                        continue
+
+                # Si ce n'est pas un marqueur de vidéo, ajouter normalement
                 result.append(element)
 
         # Si des marqueurs de début restent sans fin correspondante, les ajouter au résultat

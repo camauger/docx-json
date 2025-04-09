@@ -53,50 +53,39 @@ class ComponentRenderer(ElementRenderer):
         # Rendu générique pour les composants non reconnus
         return self._render_generic(element, indent_level)
 
-    def _render_video(self, element: Dict[str, Any], indent_level: int) -> List[str]:
+    def _render_video(
+        self, element: Dict[str, Any], indent_level: int = 0
+    ) -> List[str]:
         """
-        Rend un composant vidéo Vimeo sous forme d'iframe.
+        Renders a Vimeo video component as an iframe.
 
         Args:
-            element: L'élément de document contenant les données vidéo
-            indent_level: Niveau d'indentation
+            element: The video component element
+            indent_level: Indentation level
 
         Returns:
-            List[str]: Liste de lignes HTML pour la vidéo
+            List of HTML lines for the video player
         """
-        indent = " " * indent_level
-        # Récupérer l'ID de la vidéo depuis les attributs du composant
-        video_id = None
+        # Get video ID from component attributes, default to a sample video if not specified
+        video_id = "1069341210"  # Default value
 
-        # Essayer d'obtenir l'ID depuis les attributs du composant
+        # Try to get the video ID from various sources
         if "attributes" in element and isinstance(element["attributes"], dict):
-            video_id = element["attributes"].get("video_id")
-            print(f"DEBUG - video_id trouvé dans attributes: {video_id}")
+            video_id = element["attributes"].get("video_id", video_id)
+        else:
+            # Try direct attribute access
+            video_id = element.get("video_id", video_id)
 
-        # Si pas trouvé, chercher comme attribut direct
-        if not video_id:
-            video_id = element.get("video_id")
-            print(f"DEBUG - video_id trouvé comme attribut direct: {video_id}")
+        indent = " " * indent_level
 
-        # Valeur par défaut si non spécifié
-        if not video_id:
-            video_id = "1069341210"
-            print(f"DEBUG - utilisation video_id par défaut: {video_id}")
-
-        element_html = [
+        # Construct HTML output
+        return [
             f'{indent}<div class="video-container">',
-            f'{indent}  <iframe src="https://player.vimeo.com/video/{video_id}"',
-            f'{indent}          style="width:100%;height:400px;"',
-            f'{indent}          frameborder="0"',
-            f'{indent}          allow="autoplay; fullscreen; picture-in-picture"',
-            f"{indent}          allowfullscreen",
-            f'{indent}          title="Vimeo Video Player">',
-            f"{indent}  </iframe>",
+            f'{indent}  <iframe src="https://player.vimeo.com/video/{video_id}" width="640" height="360" frameborder="0" ',
+            f'{indent}    allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>',
             f"{indent}</div>",
             f'{indent}<script src="https://player.vimeo.com/api/player.js"></script>',
         ]
-
-        return element_html
 
     def _render_audio(self, element: Dict[str, Any], indent_level: int) -> List[str]:
         """
@@ -403,6 +392,7 @@ class ComponentRenderer(ElementRenderer):
         # S'assurer que l'élément a du contenu
         if "content" in element and element["content"]:
             for content_elem in element["content"]:
+                # Détecter les titres de diapositive
                 if content_elem["type"] == "heading":
                     # Si nous avons déjà un slide, l'ajouter à la liste
                     if current_slide and (slide_content or slide_images):
@@ -412,9 +402,24 @@ class ComponentRenderer(ElementRenderer):
 
                     if "runs" in content_elem:
                         current_slide = "".join(self._format_runs(content_elem["runs"]))
-                # Détecter et collecter les images
+                # Détecter les images attachées directement au composant
                 elif content_elem["type"] == "image":
                     slide_images.append(content_elem)
+                # Détecter les paragraphes contenant des images
+                elif content_elem["type"] == "paragraph" and "image" in content_elem:
+                    slide_images.append(content_elem["image"])
+                # Détecter les images dans les paragraphes (format docx)
+                elif content_elem["type"] == "paragraph" and "runs" in content_elem:
+                    for run in content_elem["runs"]:
+                        if "image" in run:
+                            slide_images.append(run["image"])
+
+                    # Aussi ajouter le texte du paragraphe
+                    content_html = self.html_generator._generate_element_html(
+                        content_elem, indent_level=indent_level + 6
+                    )
+                    if content_html and isinstance(content_html, list):
+                        slide_content.extend(content_html)
                 else:
                     # Générer le HTML pour l'élément de contenu
                     content_html = self.html_generator._generate_element_html(
@@ -424,6 +429,13 @@ class ComponentRenderer(ElementRenderer):
                     # S'assurer que le contenu est une liste de chaînes
                     if content_html and isinstance(content_html, list):
                         slide_content.extend(content_html)
+
+            # Également parcourir les attributs pour chercher des images
+            for attr_name, attr_value in element.items():
+                if attr_name.startswith("image_") and attr_value:
+                    slide_images.append(
+                        {"src": attr_value, "alt_text": "Image du carousel"}
+                    )
 
             # Ajouter la dernière diapositive
             if current_slide and (slide_content or slide_images):
@@ -462,14 +474,33 @@ class ComponentRenderer(ElementRenderer):
 
                 # Ajouter les images
                 for img in images:
-                    if "src" in img:
-                        image_src = img["src"]
-                        alt_text = img.get("alt_text", title)
+                    src = ""
+                    alt_text = title
+
+                    # Extraire l'URL de l'image selon le format
+                    if isinstance(img, dict):
+                        if "src" in img:
+                            src = img["src"]
+                        elif "path" in img:
+                            src = img["path"]
+                        elif "url" in img:
+                            src = img["url"]
+
+                        # Extraire le texte alternatif si disponible
+                        if "alt_text" in img:
+                            alt_text = img["alt_text"]
+                        elif "alt" in img:
+                            alt_text = img["alt"]
+                    elif isinstance(img, str):
+                        src = img
+
+                    # Ajouter l'image au HTML uniquement si nous avons une source
+                    if src:
                         element_html.append(
                             f'{indent}        <div class="text-center mt-3">'
                         )
                         element_html.append(
-                            f'{indent}          <img src="{image_src}" alt="{alt_text}" class="img-fluid rounded">'
+                            f'{indent}          <img src="{src}" alt="{alt_text}" class="img-fluid rounded">'
                         )
                         element_html.append(f"{indent}        </div>")
 

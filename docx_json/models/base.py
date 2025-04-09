@@ -15,6 +15,7 @@ class DocumentElement:
         self._type = element_type
         self._html_class = ""
         self._html_id = ""
+        self._attributes = {}  # Stockage pour des attributs personnalisés
 
     @property
     def type(self) -> str:
@@ -39,6 +40,21 @@ class DocumentElement:
     def html_id(self, value: str):
         self._html_id = value
 
+    def add_attribute(self, key: str, value: Any) -> None:
+        """Ajoute un attribut personnalisé à l'élément."""
+        self._attributes[key] = value
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Récupère un attribut par sa clé avec une valeur par défaut optionnelle."""
+        if key == "html_class":
+            return self._html_class
+        elif key == "html_id":
+            return self._html_id
+        elif key == "type":
+            return self._type
+        else:
+            return self._attributes.get(key, default)
+
     def to_dict(self) -> Dict[str, Any]:
         """Convertit l'élément en dictionnaire pour le JSON."""
         result = {"type": self.type}
@@ -48,5 +64,9 @@ class DocumentElement:
 
         if self.html_id:
             result["html_id"] = self.html_id
+
+        # Ajouter tous les attributs personnalisés
+        for key, value in self._attributes.items():
+            result[key] = value
 
         return result

@@ -2,6 +2,7 @@
 Générateur HTML principal
 """
 
+import logging
 import os
 from typing import Any, Dict, List, Optional
 
@@ -256,30 +257,41 @@ class HTMLGenerator:
         self, element: Dict[str, Any], indent_level: int = 0
     ) -> List[str]:
         """
-        Génère le HTML pour un élément spécifique.
+        Génère le HTML pour un élément de document.
 
         Args:
-            element: Dictionnaire représentant l'élément
-            indent_level: Niveau d'indentation
+            element: Élément de document à rendre
+            indent_level: Niveau d'indentation courant
 
         Returns:
-            Liste de chaînes de caractères HTML
-
-        Raises:
-            KeyError: Si le type d'élément n'est pas supporté
+            Liste de lignes HTML
         """
-        if not element or not isinstance(element, dict):
-            return []
-
-        element_type = element.get("type", "")
-        if not element_type:
-            return []
+        element_type = element.get("type", "unknown")
+        element_html = []
+        indent = " " * indent_level
 
         try:
             # Détection directe pour les paragraphes contenant des marqueurs vidéo
             if element_type == "paragraph" and "runs" in element:
-                # Extraire le texte complet
-                text = "".join([run.get("text", "") for run in element["runs"]])
+                # Vérifier que runs est une liste
+                if not isinstance(element["runs"], list):
+                    # Cas où runs n'est pas une liste valide
+                    print(
+                        f"DEBUG - 'runs' n'est pas une liste: {type(element['runs'])}"
+                    )
+                    return [
+                        f"{indent}<!-- Erreur: 'runs' n'est pas une liste valide -->",
+                        f'{indent}<div class="rendering-error">(Erreur de structure)</div>',
+                    ]
+
+                # Extraire le texte complet si runs est valide
+                text = ""
+                for run in element["runs"]:
+                    if isinstance(run, dict) and "text" in run:
+                        text += run.get("text", "")
+                    else:
+                        print(f"DEBUG - run invalide: {run}")
+                        continue
 
                 # Vérifier si c'est un marqueur de vidéo
                 if text.startswith("[Vidéo") and "]" in text:
@@ -288,78 +300,62 @@ class HTMLGenerator:
                     # Extraire l'ID
                     video_id = "1069341210"  # Valeur par défaut
 
-                    # Chercher l'attribut video_id
-                    if "video_id=" in text:
-                        # Extraction avec quotes simples
+                    # Chercher l'attribut video_id avec quotes simples
+                    if "video_id='" in text:
                         start_idx = text.find("video_id='")
-                        if start_idx > 0:
+                        if start_idx >= 0:
                             start_idx += 10  # Longueur de "video_id='"
                             end_idx = text.find("'", start_idx)
                             if end_idx > start_idx:
                                 video_id = text[start_idx:end_idx]
-                                print(f"DEBUG - ID vidéo trouvé: '{video_id}'")
+                                print(
+                                    f"DEBUG - ID vidéo trouvé (quotes simples): '{video_id}'"
+                                )
 
-                    indent = " " * indent_level
+                    # Chercher l'attribut video_id avec quotes doubles
+                    elif 'video_id="' in text:
+                        start_idx = text.find('video_id="')
+                        if start_idx >= 0:
+                            start_idx += 10  # Longueur de 'video_id="'
+                            end_idx = text.find('"', start_idx)
+                            if end_idx > start_idx:
+                                video_id = text[start_idx:end_idx]
+                                print(
+                                    f"DEBUG - ID vidéo trouvé (quotes doubles): '{video_id}'"
+                                )
+
                     # Rendu direct de l'iframe vidéo
                     return [
                         f'{indent}<div class="video-container">',
-                        f'{indent}  <iframe src="https://player.vimeo.com/video/{video_id}"',
-                        f'{indent}          style="width:100%;height:400px;"',
-                        f'{indent}          frameborder="0"',
-                        f'{indent}          allow="autoplay; fullscreen; picture-in-picture"',
-                        f"{indent}          allowfullscreen",
-                        f'{indent}          title="Vimeo Video Player">',
-                        f"{indent}  </iframe>",
+                        f'{indent}  <iframe src="https://player.vimeo.com/video/{video_id}" width="640" height="360" frameborder="0"',
+                        f'{indent}          allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>',
                         f"{indent}</div>",
                         f'{indent}<script src="https://player.vimeo.com/api/player.js"></script>',
                     ]
 
-            # Pour les composants vidéo
-            if element_type == "component" and element.get("component_type") == "Vidéo":
-                video_id = None
-
-                # Chercher l'ID dans les attributs
-                if "attributes" in element and isinstance(element["attributes"], dict):
-                    video_id = element["attributes"].get("video_id")
-                    print(f"DEBUG - Vidéo componant ID trouvé: {video_id}")
-
-                # Utiliser une valeur par défaut si nécessaire
-                if not video_id:
-                    video_id = "1069341210"  # ID par défaut
-
-                indent = " " * indent_level
-                return [
-                    f'{indent}<div class="video-container">',
-                    f'{indent}  <iframe src="https://player.vimeo.com/video/{video_id}"',
-                    f'{indent}          style="width:100%;height:400px;"',
-                    f'{indent}          frameborder="0"',
-                    f'{indent}          allow="autoplay; fullscreen; picture-in-picture"',
-                    f"{indent}          allowfullscreen",
-                    f'{indent}          title="Vimeo Video Player">',
-                    f"{indent}  </iframe>",
-                    f"{indent}</div>",
-                    f'{indent}<script src="https://player.vimeo.com/api/player.js"></script>',
-                ]
-
-            # Pour les composants, utiliser spécifiquement le renderer de composants
-            if element_type == "component":
-                return self._renderers["component"].render(element, indent_level)
-
-            # Pour les autres types d'éléments
+            # Utiliser les renderers pour les autres types d'éléments
             renderer = self._renderers.get(element_type)
             if renderer:
-                return renderer.render(element, indent_level)
+                element_html = renderer.render(element, indent_level)
             else:
-                # Logging et retour d'une div avec message d'erreur en commentaire HTML
-                indent = " " * indent_level
-                return [
-                    f"{indent}<!-- Élément non supporté : {element_type} -->",
-                    f'{indent}<div class="unsupported-element">(Élément non supporté)</div>',
-                ]
+                # Si pas de renderer pour ce type, ajouter un commentaire d'erreur
+                element_html.append(
+                    f"{indent}<!-- Erreur lors du rendu : {element_type} -->"
+                )
+                element_html.append(
+                    f'{indent}<div class="rendering-error">(Erreur de rendu)</div>'
+                )
+
+            return element_html
+
         except Exception as e:
-            # Logging de l'erreur et affichage d'un message d'erreur en HTML
-            indent = " " * indent_level
-            return [
-                f"{indent}<!-- Erreur lors du rendu : {str(e)} -->",
-                f'{indent}<div class="rendering-error">(Erreur de rendu)</div>',
-            ]
+            # En cas d'erreur, ajouter un commentaire et une div d'erreur
+            error_message = str(e)
+            logging.error(f"Erreur de rendu HTML: {error_message}")
+            element_html.append(
+                f"{indent}<!-- Erreur lors du rendu : {error_message} -->"
+            )
+            element_html.append(
+                f'{indent}<div class="rendering-error">(Erreur de rendu)</div>'
+            )
+            return element_html

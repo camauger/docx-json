@@ -35,10 +35,12 @@ class Paragraph(DocumentElement):
     """Représente un paragraphe dans le document."""
 
     runs: List[TextRun] = field(default_factory=list)
+    images: List[Dict[str, str]] = field(default_factory=list)
 
     def __init__(self):
         super().__init__("paragraph")
         self.runs = []
+        self.images = []
 
     def add_run(self, run: TextRun):
         """Ajoute un morceau de texte au paragraphe."""
@@ -56,6 +58,14 @@ class Paragraph(DocumentElement):
             }
             for run in self.runs
         ]
+
+        # Ajouter les images s'il y en a
+        if self.images:
+            if len(self.images) == 1:
+                result["image"] = self.images[0]
+            else:
+                result["images"] = self.images
+
         return result
 
 
@@ -65,11 +75,13 @@ class Heading(DocumentElement):
 
     level: int
     runs: List[TextRun] = field(default_factory=list)
+    images: List[Dict[str, str]] = field(default_factory=list)
 
     def __init__(self, level: int):
         super().__init__("heading")
         self.level = level
         self.runs = []
+        self.images = []
 
     def add_run(self, run: TextRun):
         """Ajoute un morceau de texte au titre."""
@@ -88,6 +100,14 @@ class Heading(DocumentElement):
             }
             for run in self.runs
         ]
+
+        # Ajouter les images s'il y en a
+        if self.images:
+            if len(self.images) == 1:
+                result["image"] = self.images[0]
+            else:
+                result["images"] = self.images
+
         return result
 
 
@@ -96,10 +116,12 @@ class ListItem(DocumentElement):
     """Représente un élément de liste dans le document."""
 
     runs: List[TextRun] = field(default_factory=list)
+    images: List[Dict[str, str]] = field(default_factory=list)
 
     def __init__(self):
         super().__init__("list_item")
         self.runs = []
+        self.images = []
 
     def add_run(self, run: TextRun):
         """Ajoute un morceau de texte à l'élément de liste."""
@@ -117,6 +139,14 @@ class ListItem(DocumentElement):
             }
             for run in self.runs
         ]
+
+        # Ajouter les images s'il y en a
+        if self.images:
+            if len(self.images) == 1:
+                result["image"] = self.images[0]
+            else:
+                result["images"] = self.images
+
         return result
 
 

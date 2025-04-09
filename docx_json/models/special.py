@@ -23,6 +23,8 @@ class ComponentMarker(DocumentElement):
         self.component_type = component_type
         # Initialiser les attributs directement via le dictionnaire pour éviter la récursion
         self.__dict__["attributes"] = {}
+        # S'assurer que _attributes est initialisé (vient de DocumentElement)
+        self._attributes = {}
 
     def __setattr__(self, name, value):
         """
@@ -32,7 +34,14 @@ class ComponentMarker(DocumentElement):
             name: Nom de l'attribut
             value: Valeur de l'attribut
         """
-        if name in ["type", "component_type", "_type", "_html_class", "_html_id"]:
+        if name in [
+            "type",
+            "component_type",
+            "_type",
+            "_html_class",
+            "_html_id",
+            "_attributes",
+        ]:
             # Attributs standards du modèle - utiliser le dict pour éviter la récursion
             super().__setattr__(name, value)
         elif name == "attributes":
