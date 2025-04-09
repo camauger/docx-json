@@ -18,7 +18,8 @@ from typing import Any, Dict, List, Optional, cast
 from docx.table import Table
 from docx.text.paragraph import Paragraph
 
-from docx_json.core.converter import DocxConverter, HTMLGenerator
+from docx_json.core.converter import DocxConverter
+from docx_json.core.html_renderer import HTMLGenerator
 from docx_json.exceptions import DocxValidationError
 from docx_json.models.elements import (
     Block,
@@ -249,7 +250,7 @@ def get_document_json(
 
 def generate_html(json_data: Dict[str, Any], css_path: Optional[str] = None) -> str:
     """
-    Génère un document HTML à partir de la structure JSON
+    Génère une représentation HTML à partir de la structure JSON du document
 
     Args:
         json_data: Dictionnaire représentant le document
@@ -258,19 +259,18 @@ def generate_html(json_data: Dict[str, Any], css_path: Optional[str] = None) -> 
     Returns:
         Une chaîne de caractères contenant le HTML
     """
-    # Utiliser la nouvelle classe HTMLGenerator
-    generator = HTMLGenerator(json_data)
-
-    # Si un CSS personnalisé est fourni, le charger
-    if css_path and os.path.exists(css_path):
+    # Charger le CSS personnalisé s'il est spécifié
+    custom_css = None
+    if css_path:
         try:
             with open(css_path, "r", encoding="utf-8") as f:
                 custom_css = f.read()
-            return generator.generate(custom_css=custom_css)
         except Exception as e:
             logging.warning(f"Impossible de charger le CSS personnalisé: {str(e)}")
 
-    return generator.generate()
+    # Utiliser le générateur HTML
+    generator = HTMLGenerator(json_data)
+    return generator.generate(custom_css)
 
 
 def generate_markdown(json_data: Dict[str, Any]) -> str:
