@@ -18,7 +18,7 @@ from docx_json.models.media import Image
 from docx_json.models.special import ComponentEnd, ComponentMarker, Instruction, RawHTML
 
 # Import des éléments textuels
-from docx_json.models.text import Heading, ListItem, Paragraph, TextRun
+from docx_json.models.text import DocumentList, Heading, ListItem, Paragraph, TextRun
 
 # Pour conserver la compatibilité avec le code existant
 __all__ = [
@@ -27,6 +27,7 @@ __all__ = [
     "Paragraph",
     "Heading",
     "ListItem",
+    "DocumentList",
     "Image",
     "Table",
     "Component",

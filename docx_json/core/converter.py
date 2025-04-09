@@ -705,19 +705,37 @@ class HTMLGenerator:
                 element_html.append(text)
             element_html.append(f"</h{level}>")
 
-        elif element["type"] == "list_item":
-            # Note: ceci est simplifié et ne gère pas les listes imbriquées correctement
-            element_html.append("<li>")
-            for run in element["runs"]:
-                text = run["text"]
-                if run["bold"]:
-                    text = f"<strong>{text}</strong>"
-                if run["italic"]:
-                    text = f"<em>{text}</em>"
-                if run["underline"]:
-                    text = f"<u>{text}</u>"
-                element_html.append(text)
-            element_html.append("</li>")
+        elif element["type"] == "list":
+            # Déterminer le type de liste (ordonnée ou non)
+            list_tag = "ol" if element.get("ordered", False) else "ul"
+
+            # Ajouter les attributs HTML si présents
+            attrs = []
+            if "html_class" in element:
+                attrs.append(f'class="{element["html_class"]}"')
+            if "html_id" in element:
+                attrs.append(f'id="{element["html_id"]}"')
+
+            attrs_str = " ".join(attrs)
+            attrs_str = f" {attrs_str}" if attrs_str else ""
+
+            element_html.append(f"<{list_tag}{attrs_str}>")
+
+            # Ajouter chaque élément de la liste
+            for item in element.get("items", []):
+                element_html.append("<li>")
+                for run in item["runs"]:
+                    text = run["text"]
+                    if run["bold"]:
+                        text = f"<strong>{text}</strong>"
+                    if run["italic"]:
+                        text = f"<em>{text}</em>"
+                    if run["underline"]:
+                        text = f"<u>{text}</u>"
+                    element_html.append(text)
+                element_html.append("</li>")
+
+            element_html.append(f"</{list_tag}>")
 
         elif element["type"] == "table":
             element_html.append('<table class="table table-bordered">')

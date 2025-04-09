@@ -17,6 +17,8 @@ class TextElementRenderer(ElementRenderer):
             return self._render_heading(element, indent_level)
         elif element["type"] == "list_item":
             return self._render_list_item(element, indent_level)
+        elif element["type"] == "list":
+            return self._render_list(element, indent_level)
         return []
 
     def _render_paragraph(
@@ -49,6 +51,17 @@ class TextElementRenderer(ElementRenderer):
         return []
 
     def _render_heading(self, element: Dict[str, Any], indent_level: int) -> List[str]:
+        # Vérifier si le titre contient du texte non-vide
+        has_content = False
+        for run in element["runs"]:
+            if run["text"].strip():
+                has_content = True
+                break
+
+        # Ne pas générer de HTML pour les titres vides
+        if not has_content:
+            return []
+
         attrs = []
         if "html_class" in element:
             attrs.append(f'class="{element["html_class"]}"')
@@ -58,10 +71,10 @@ class TextElementRenderer(ElementRenderer):
         attrs_str = " ".join(attrs)
         attrs_str = f" {attrs_str}" if attrs_str else ""
         indent = " " * indent_level
-        level = element["level"]
 
         content = self._format_runs(element["runs"])
-        if "".join(content).strip():
+        if content:
+            level = element.get("level", 1)
             return [f"{indent}<h{level}{attrs_str}>{''.join(content)}</h{level}>"]
         return []
 
@@ -81,4 +94,35 @@ class TextElementRenderer(ElementRenderer):
 
         indent = " " * indent_level
         content = self._format_runs(element["runs"])
-        return [f"{indent}<li>{''.join(content)}</li>"]
+        if content:
+            return [f"{indent}<li>{''.join(content)}</li>"]
+        return []
+
+    def _render_list(self, element: Dict[str, Any], indent_level: int) -> List[str]:
+        # Vérifier si la liste contient des éléments
+        if not element.get("items"):
+            return []
+
+        indent = " " * indent_level
+        list_tag = "ol" if element.get("ordered", False) else "ul"
+
+        # Ajouter les attributs HTML si présents
+        attrs = []
+        if "html_class" in element:
+            attrs.append(f'class="{element["html_class"]}"')
+        if "html_id" in element:
+            attrs.append(f'id="{element["html_id"]}"')
+
+        attrs_str = " ".join(attrs)
+        attrs_str = f" {attrs_str}" if attrs_str else ""
+
+        element_html = [f"{indent}<{list_tag}{attrs_str}>"]
+
+        # Ajouter chaque élément de la liste
+        for item in element["items"]:
+            item_html = self._render_list_item(item, indent_level + 2)
+            if item_html:
+                element_html.extend(item_html)
+
+        element_html.append(f"{indent}</{list_tag}>")
+        return element_html

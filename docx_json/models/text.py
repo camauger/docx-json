@@ -118,3 +118,27 @@ class ListItem(DocumentElement):
             for run in self.runs
         ]
         return result
+
+
+@dataclass
+class DocumentList(DocumentElement):
+    """Représente une liste dans le document."""
+
+    items: List[ListItem] = field(default_factory=list)
+    ordered: bool = False
+
+    def __init__(self, ordered: bool = False):
+        super().__init__("list")
+        self.items = []
+        self.ordered = ordered
+
+    def add_item(self, item: ListItem):
+        """Ajoute un élément à la liste."""
+        self.items.append(item)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convertit la liste en dictionnaire pour le JSON."""
+        result = super().to_dict()
+        result["ordered"] = self.ordered
+        result["items"] = [item.to_dict() for item in self.items]
+        return result
