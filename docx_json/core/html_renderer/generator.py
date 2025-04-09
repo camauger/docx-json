@@ -12,6 +12,7 @@ from .page_break import PageBreakRenderer
 from .raw_html import RawHTMLRenderer
 from .table import TableRenderer
 from .text import TextElementRenderer
+from .video import VideoRenderer
 
 
 class HTMLGenerator:
@@ -72,6 +73,7 @@ class HTMLGenerator:
             "image": self._image_renderer,
             "raw_html": self._raw_html_renderer,
             "page_break": self._page_break_renderer,
+            "video": VideoRenderer(self),
         }
 
     def generate(self, custom_css: Optional[str] = None) -> str:
@@ -92,11 +94,13 @@ class HTMLGenerator:
             f'  <title>{self._json_data["meta"]["title"]}</title>',
             '  <meta charset="UTF-8">',
             '  <meta name="viewport" content="width=device-width, initial-scale=1.0">',
+            "  <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css'>",
         ]
 
         # Ajouter le CSS
         if custom_css:
             html.extend(["  <style>", f"    {custom_css}", "  </style>"])
+            html.append(f"  {self.BOOTSTRAP_CSS}")
         else:
             html.append(f"  {self.BOOTSTRAP_CSS}")
 
@@ -108,23 +112,84 @@ class HTMLGenerator:
                 "  </style>",
                 "</head>",
                 "<body>",
-                '  <div class="container py-4">',  # Ajouter un padding vertical
+                "  <!-- En-tête -->",
+                '  <header class="bg-primary py-3 mb-4 shadow-sm">',
+                '    <div class="container">',
+                '      <div class="d-flex align-items-center">',
+                f'        <h1 class="h4 mb-0">{self._json_data["meta"]["title"]}</h1>',
+                '        <div class="ms-auto">',
+                '          <button class="btn btn-outline-light btn-sm" id="theme-toggle">',
+                '            <i class="bi bi-brightness-high" id="light-icon"></i>',
+                '            <i class="bi bi-moon-stars d-none" id="dark-icon"></i>',
+                "          </button>",
+                "        </div>",
+                "      </div>",
+                "    </div>",
+                "  </header>",
+                "  <!-- Contenu principal -->",
+                "  <main>",
+                '    <div class="container py-4">',  # Ajouter un padding vertical
             ]
         )
 
         # Générer le contenu
         for element in self._json_data["content"]:
-            element_html = self._generate_element_html(element, indent_level=4)
+            element_html = self._generate_element_html(element, indent_level=6)
             html.extend(element_html)
 
         # Fermer les balises principales
-        html.append("  </div>")  # Fermer le container
+        html.extend(
+            [
+                "    </div>",  # Fermer le container
+                "  </main>",
+                "  <!-- Pied de page -->",
+                '  <footer class="bg-light py-4 mt-5 border-top">',
+                '    <div class="container">',
+                '      <div class="row">',
+                '        <div class="col-md-6">',
+                '          <p class="mb-0 text-muted">© 2025 - TELUQ</p>',
+                "        </div>",
+                '        <div class="col-md-6 text-md-end">',
+                '          <a href="#" class="text-decoration-none me-3"><i class="bi bi-github"></i> GitHub</a>',
+                '          <a href="#" class="text-decoration-none"><i class="bi bi-book"></i> Documentation</a>',
+                "        </div>",
+                "      </div>",
+                "    </div>",
+                "  </footer>",
+            ]
+        )
 
-        # Ajouter les scripts Bootstrap si nécessaire
+        # Ajouter les scripts Bootstrap
         if not custom_css:
             html.append(f"  {self.BOOTSTRAP_JS}")
+        else:
+            html.append(f"  {self.BOOTSTRAP_JS}")
 
-        html.extend(["</body>", "</html>"])
+        # Ajouter le script pour le toggle de thème
+        html.extend(
+            [
+                "  <script>",
+                '    document.getElementById("theme-toggle").addEventListener("click", function() {',
+                '      document.body.classList.toggle("bg-dark");',
+                '      document.body.classList.toggle("text-white");',
+                '      document.getElementById("light-icon").classList.toggle("d-none");',
+                '      document.getElementById("dark-icon").classList.toggle("d-none");',
+                '      const containers = document.querySelectorAll(".container");',
+                "      containers.forEach(container => {",
+                '        if (document.body.classList.contains("bg-dark")) {',
+                '          container.style.backgroundColor = "#343a40";',
+                '          container.style.color = "#fff";',
+                "        } else {",
+                '          container.style.backgroundColor = "#fff";',
+                '          container.style.color = "#212529";',
+                "        }",
+                "      });",
+                "    });",
+                "  </script>",
+                "</body>",
+                "</html>",
+            ]
+        )
 
         return "\n".join(html)
 
@@ -191,7 +256,7 @@ class HTMLGenerator:
         self, element: Dict[str, Any], indent_level: int = 0
     ) -> List[str]:
         """
-        Génère le HTML pour un élément spécifique en déléguant au renderer approprié.
+        Génère le HTML pour un élément spécifique.
 
         Args:
             element: Dictionnaire représentant l'élément
@@ -203,9 +268,98 @@ class HTMLGenerator:
         Raises:
             KeyError: Si le type d'élément n'est pas supporté
         """
-        element_type = element["type"]
+        if not element or not isinstance(element, dict):
+            return []
+
+        element_type = element.get("type", "")
+        if not element_type:
+            return []
+
         try:
-            renderer = self._renderers[element_type]
-            return renderer.render(element, indent_level)
-        except KeyError:
-            raise KeyError(f"Type d'élément non supporté : {element_type}")
+            # Détection directe pour les paragraphes contenant des marqueurs vidéo
+            if element_type == "paragraph" and "runs" in element:
+                # Extraire le texte complet
+                text = "".join([run.get("text", "") for run in element["runs"]])
+
+                # Vérifier si c'est un marqueur de vidéo
+                if text.startswith("[Vidéo") and "]" in text:
+                    print(f"DEBUG - Marqueur vidéo détecté: '{text}'")
+
+                    # Extraire l'ID
+                    video_id = "1069341210"  # Valeur par défaut
+
+                    # Chercher l'attribut video_id
+                    if "video_id=" in text:
+                        # Extraction avec quotes simples
+                        start_idx = text.find("video_id='")
+                        if start_idx > 0:
+                            start_idx += 10  # Longueur de "video_id='"
+                            end_idx = text.find("'", start_idx)
+                            if end_idx > start_idx:
+                                video_id = text[start_idx:end_idx]
+                                print(f"DEBUG - ID vidéo trouvé: '{video_id}'")
+
+                    indent = " " * indent_level
+                    # Rendu direct de l'iframe vidéo
+                    return [
+                        f'{indent}<div class="video-container">',
+                        f'{indent}  <iframe src="https://player.vimeo.com/video/{video_id}"',
+                        f'{indent}          style="width:100%;height:400px;"',
+                        f'{indent}          frameborder="0"',
+                        f'{indent}          allow="autoplay; fullscreen; picture-in-picture"',
+                        f"{indent}          allowfullscreen",
+                        f'{indent}          title="Vimeo Video Player">',
+                        f"{indent}  </iframe>",
+                        f"{indent}</div>",
+                        f'{indent}<script src="https://player.vimeo.com/api/player.js"></script>',
+                    ]
+
+            # Pour les composants vidéo
+            if element_type == "component" and element.get("component_type") == "Vidéo":
+                video_id = None
+
+                # Chercher l'ID dans les attributs
+                if "attributes" in element and isinstance(element["attributes"], dict):
+                    video_id = element["attributes"].get("video_id")
+                    print(f"DEBUG - Vidéo componant ID trouvé: {video_id}")
+
+                # Utiliser une valeur par défaut si nécessaire
+                if not video_id:
+                    video_id = "1069341210"  # ID par défaut
+
+                indent = " " * indent_level
+                return [
+                    f'{indent}<div class="video-container">',
+                    f'{indent}  <iframe src="https://player.vimeo.com/video/{video_id}"',
+                    f'{indent}          style="width:100%;height:400px;"',
+                    f'{indent}          frameborder="0"',
+                    f'{indent}          allow="autoplay; fullscreen; picture-in-picture"',
+                    f"{indent}          allowfullscreen",
+                    f'{indent}          title="Vimeo Video Player">',
+                    f"{indent}  </iframe>",
+                    f"{indent}</div>",
+                    f'{indent}<script src="https://player.vimeo.com/api/player.js"></script>',
+                ]
+
+            # Pour les composants, utiliser spécifiquement le renderer de composants
+            if element_type == "component":
+                return self._renderers["component"].render(element, indent_level)
+
+            # Pour les autres types d'éléments
+            renderer = self._renderers.get(element_type)
+            if renderer:
+                return renderer.render(element, indent_level)
+            else:
+                # Logging et retour d'une div avec message d'erreur en commentaire HTML
+                indent = " " * indent_level
+                return [
+                    f"{indent}<!-- Élément non supporté : {element_type} -->",
+                    f'{indent}<div class="unsupported-element">(Élément non supporté)</div>',
+                ]
+        except Exception as e:
+            # Logging de l'erreur et affichage d'un message d'erreur en HTML
+            indent = " " * indent_level
+            return [
+                f"{indent}<!-- Erreur lors du rendu : {str(e)} -->",
+                f'{indent}<div class="rendering-error">(Erreur de rendu)</div>',
+            ]

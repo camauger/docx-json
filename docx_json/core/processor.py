@@ -7,7 +7,7 @@ Module pour le traitement des instructions et des éléments du document
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 logger = logging.getLogger(__name__)
 
@@ -30,122 +30,93 @@ class DocumentProcessor:
     @staticmethod
     def process_instructions(elements: List[DocumentElement]) -> List[DocumentElement]:
         """
-        Traite les instructions et composants spéciaux dans une liste d'éléments.
-
-        Cette méthode :
-        1. Gère les instructions et les remplace par les éléments appropriés
-        2. Regroupe les éléments entre marqueurs de composants
-        3. Traite les attributs HTML (classes, ID)
+        Traite les marqueurs d'instructions dans le document pour créer des composants.
 
         Args:
-            elements: Liste des éléments de document à traiter
+            elements: Liste d'éléments de document
 
         Returns:
-            Liste des éléments traités
+            Liste d'éléments avec les composants traités
         """
         result = []
-        i = 0
-        current_block = None
-        current_component = None
-        pending_classes = []
-        pending_id = None
+        pending_markers = {}  # Stocke les marqueurs par type
+        component_counts = {
+            "Accordéon": 0,
+            "Onglets": 0,
+            "Carrousel": 0,
+            "Audio": 0,
+            "Vidéo": 0,
+        }
 
-        while i < len(elements):
-            element = elements[i]
+        for element in elements:
+            # Si c'est un marqueur de début de composant
+            if element.type == "component_marker":
+                marker = cast(ComponentMarker, element)
+                component_type = marker.component_type
 
-            # Traitement des instructions
-            if isinstance(element, Instruction):
-                instruction = element.content.strip()
-                logging.debug(f"Instruction trouvée: {instruction}")
+                # Stocker le marqueur pour traitement ultérieur
+                if component_type not in pending_markers:
+                    pending_markers[component_type] = []
+                pending_markers[component_type].append((len(result), marker))
 
-                # Traitement des instructions comme les classes et IDs
-                if instruction.startswith("class "):
-                    class_names = instruction[6:].strip()
-                    pending_classes.extend(class_names.split())
-                elif instruction.startswith("id "):
-                    pending_id = instruction[3:].strip()
-                elif " begin" in instruction:
-                    block_type = instruction.split()[0]
-                    current_block = Block(block_type)
-                # Autres instructions omises pour la concision
-
-            # Traitement des marqueurs de composants pédagogiques
-            elif element.type == "component_marker":
-                if isinstance(element, ComponentMarker):
-                    component_type = element.component_type
-                    logging.debug(f"Marqueur de composant trouvé: {component_type}")
-
-                    # Créer un nouveau composant
-                    current_component = Component(component_type)
-
-                    # Rechercher jusqu'au marqueur de fin correspondant
-                    j = i + 1
-                    found_end_marker = False
-
-                    while j < len(elements):
-                        next_element = elements[j]
-
-                        # Si on trouve le marqueur de fin correspondant
-                        if (
-                            next_element.type == "component_end"
-                            and isinstance(next_element, ComponentEnd)
-                            and next_element.component_type == component_type
-                        ):
-                            i = j  # On avance jusqu'à la fin du composant
-                            found_end_marker = True
-                            break
-                        # Si c'est un autre marqueur de composant, on s'arrête
-                        elif next_element.type == "component_marker":
-                            i = j - 1
-                            break
-                        # Sinon, on ajoute au contenu du composant
-                        else:
-                            current_component.add_element(next_element)
-
-                        j += 1
-
-                    # Ajouter le composant au résultat
-                    result.append(current_component)
-                    logging.debug(
-                        f"Composant '{component_type}' ajouté avec {len(current_component.content)} éléments de contenu"
-                    )
-                    current_component = None
-
-                    # Si on n'a pas trouvé de marqueur de fin
-                    if not found_end_marker:
-                        logging.warning(
-                            f"Pas de marqueur de fin trouvé pour le composant '{component_type}'"
-                        )
-
-            # Traitement des marqueurs de fin sans marqueur de début correspondant
+            # Si c'est un marqueur de fin de composant
             elif element.type == "component_end":
-                if isinstance(element, ComponentEnd):
-                    logging.warning(
-                        f"Marqueur de fin '{element.component_type}' sans marqueur de début correspondant"
+                end_marker = cast(ComponentEnd, element)
+                component_type = end_marker.component_type
+
+                # Chercher le marqueur de début correspondant
+                if (
+                    component_type in pending_markers
+                    and pending_markers[component_type]
+                ):
+                    start_index, start_marker = pending_markers[component_type].pop(0)
+
+                    # Logger pour le débogage
+                    print(
+                        f"Création d'un composant {component_type} entre les indices {start_index} et {len(result)}"
                     )
 
-            # Tout autre élément
-            else:
-                # Ajouter aux résultats en tenant compte du contexte
-                if pending_classes:
-                    element.html_class = " ".join(pending_classes)
-                    pending_classes = []
+                    # Créer un composant avec tout le contenu entre les marqueurs
+                    component = Component(component_type)
+                    component_counts[component_type] += 1
 
-                if pending_id:
-                    element.html_id = pending_id
-                    pending_id = None
+                    # Pour les vidéos, récupérer les attributs personnalisés
+                    if component_type == "Vidéo" and hasattr(
+                        start_marker, "attributes"
+                    ):
+                        # Transférer les attributs du ComponentMarker vers le Component
+                        for key, value in start_marker.attributes.items():
+                            # Utiliser la méthode add_attribute au lieu d'accéder directement à custom_attributes
+                            component.add_attribute(key, value)
+                            print(f"Attribut vidéo ajouté: {key}={value}")
 
-                if current_block:
-                    current_block.add_element(element)
+                    # Ajouter le contenu entre les marqueurs au composant
+                    component.content = result[start_index : len(result)]
+
+                    # Remplacer tous les éléments entre les marqueurs par le composant
+                    result = result[:start_index] + [component]
                 else:
+                    # Si pas de marqueur de début, ajouter un avertissement
+                    logging.warning(
+                        f"Marqueur de fin '{component_type}' sans marqueur de début correspondant"
+                    )
                     result.append(element)
+            else:
+                # Tout autre élément est ajouté tel quel
+                result.append(element)
 
-            i += 1
+        # Si des marqueurs de début restent sans fin correspondante, les ajouter au résultat
+        for component_type, markers in pending_markers.items():
+            for _, marker in markers:
+                logging.warning(
+                    f"Marqueur de début '{component_type}' sans marqueur de fin correspondant"
+                )
+                result.append(marker)
 
-        # Ajouter le dernier bloc s'il n'a pas été fermé
-        if current_block:
-            result.append(current_block)
-            logging.warning("Un bloc n'a pas été fermé dans le document")
+        # Afficher les statistiques des composants
+        for component_type, count in component_counts.items():
+            if count > 0:
+                print(f"Composant trouvé: {component_type} avec {count} éléments")
 
         return result
 

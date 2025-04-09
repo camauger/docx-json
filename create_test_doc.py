@@ -1,7 +1,11 @@
+import io
+import os
+
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt, RGBColor
 from docx.text.paragraph import Paragraph
+from PIL import Image, ImageDraw, ImageFont
 
 from docx_json.core.docx_parser import DocxParser
 from docx_json.core.html_renderer import HTMLGenerator
@@ -9,7 +13,46 @@ from docx_json.core.processor import DocumentProcessor
 from docx_json.models import Component
 
 
+def create_placeholder_image(filename, width=600, height=400, text="Image placeholder"):
+    """Crée une image placeholder avec du texte."""
+    # Créer le dossier si nécessaire
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+    # Créer une image avec un fond gris clair
+    image = Image.new("RGB", (width, height), color=(240, 240, 240))
+    draw = ImageDraw.Draw(image)
+
+    # Tracer un cadre
+    draw.rectangle(
+        [(10, 10), (width - 10, height - 10)], outline=(200, 200, 200), width=2
+    )
+
+    # Ajouter du texte
+    try:
+        # Essayer d'utiliser une police système
+        font = ImageFont.truetype("arial.ttf", 30)
+    except IOError:
+        # Utiliser la police par défaut si arial n'est pas disponible
+        font = ImageFont.load_default()
+
+    # Calculer la position du texte pour le centrer
+    text_width = draw.textlength(text, font=font)
+    text_position = ((width - text_width) // 2, height // 2 - 15)
+    draw.text(text_position, text, fill=(100, 100, 100), font=font)
+
+    # Sauvegarder l'image
+    image.save(filename)
+
+
 def create_test_document() -> None:
+    # Créer des images placeholder pour le carousel
+    create_placeholder_image(
+        "test_templates/images/placeholder1.jpg", text="Diapositive 1"
+    )
+    create_placeholder_image(
+        "test_templates/images/placeholder2.jpg", text="Diapositive 2"
+    )
+
     # Créer un nouveau document
     doc = Document()
 
@@ -116,7 +159,7 @@ def create_test_document() -> None:
 
     # Accordéon
     doc.add_heading("Accordéon", level=3)
-    doc.add_paragraph("[Accordéon class='accordion' id='mainAccordion']")
+    doc.add_paragraph("[Accordéon]")
     doc.add_heading("Axe 1 - Premier axe", level=4)
     doc.add_paragraph("Contenu du premier axe de l'accordéon.")
     doc.add_heading("Axe 2 - Deuxième axe", level=4)
@@ -127,7 +170,7 @@ def create_test_document() -> None:
 
     # Onglets
     doc.add_heading("Onglets", level=3)
-    doc.add_paragraph("[Onglets class='nav nav-tabs' id='mainTabs']")
+    doc.add_paragraph("[Onglets]")
     doc.add_heading("Onglet 1", level=4)
     doc.add_paragraph("Contenu du premier onglet.")
     doc.add_heading("Onglet 2", level=4)
@@ -136,27 +179,43 @@ def create_test_document() -> None:
 
     # Carousel
     doc.add_heading("Carrousel", level=3)
-    doc.add_paragraph(
-        "[Carrousel class='carousel slide' id='mainCarousel' data-bs-ride='carousel']"
-    )
+    doc.add_paragraph("[Carrousel]")
+
+    # Diapositive 1 avec image
     doc.add_heading("Diapositive 1", level=4)
     doc.add_paragraph("Contenu de la première diapositive.")
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # Ajouter une image à la première diapositive
+    run = p.add_run()
+    run.add_picture("test_templates/images/placeholder1.jpg", width=Pt(300))
+
+    # Diapositive 2 avec image
     doc.add_heading("Diapositive 2", level=4)
     doc.add_paragraph("Contenu de la deuxième diapositive.")
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # Ajouter une image à la deuxième diapositive
+    run = p.add_run()
+    run.add_picture("test_templates/images/placeholder2.jpg", width=Pt(300))
+
     doc.add_paragraph("[Fin Carrousel]")
 
     # Audio
     doc.add_heading("Audio", level=3)
-    doc.add_paragraph("[Audio class='audio-player' id='mainAudio']")
+    doc.add_paragraph("[Audio]")
     doc.add_paragraph("Titre de l'audio")
     doc.add_paragraph("Description de l'audio")
     doc.add_paragraph("[Fin Audio]")
 
     # Vidéo
-    doc.add_heading("Vidéo", level=3)
-    doc.add_paragraph("[Vidéo class='video-player' id='mainVideo']")
-    doc.add_paragraph("Titre de la vidéo")
-    doc.add_paragraph("Description de la vidéo")
+    doc.add_heading("Vidéo Vimeo", level=3)
+    # Utiliser un seul paragraphe avec le format vidéo et l'ID intégré
+    doc.add_paragraph("[Vidéo video_id='1069341210']")
+    doc.add_paragraph("Titre de la vidéo Vimeo")
+    doc.add_paragraph(
+        "Cette vidéo est hébergée sur la plateforme Vimeo et intégrée directement dans le document."
+    )
     doc.add_paragraph("[Fin Vidéo]")
 
     # Sauvegarder le document
@@ -186,13 +245,79 @@ def create_test_document() -> None:
 
     # Créer la structure JSON pour le générateur HTML
     json_data = {
-        "meta": {"title": "Document de Test"},
+        "meta": {"title": "Document de Test - Bootstrap Components"},
         "content": [element.to_dict() for element in processed_elements],
         "images": parser.get_images(),
     }
 
+    # Définir un CSS personnalisé pour améliorer l'apparence
+    custom_css = """
+    body {
+      background-color: #f8f9fa;
+      color: #212529;
+    }
+    .container {
+      max-width: 900px;
+      background-color: #fff;
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+      border-radius: 0.5rem;
+      padding: 2rem;
+      margin-top: 2rem;
+      margin-bottom: 2rem;
+    }
+    h1 {
+      color: #0d6efd;
+      border-bottom: 2px solid #dee2e6;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    h2 {
+      color: #198754;
+      margin-top: 2rem;
+      border-left: 4px solid #198754;
+      padding-left: 0.5rem;
+    }
+    h3 {
+      color: #6610f2;
+      margin-top: 1.5rem;
+    }
+    .accordion {
+      margin-bottom: 2rem;
+    }
+    .accordion-button:not(.collapsed) {
+      background-color: #e7f1ff;
+      color: #0c63e4;
+    }
+    .nav-tabs .nav-link.active {
+      font-weight: bold;
+    }
+    .carousel {
+      margin-bottom: 2rem;
+      border: 1px solid #dee2e6;
+      border-radius: 0.375rem;
+      overflow: hidden;
+    }
+    .carousel-content {
+      min-height: 200px;
+    }
+    ul, ol {
+      background-color: #f8f9fa;
+      padding: 1rem 1rem 1rem 2.5rem;
+      border-radius: 0.375rem;
+    }
+    .ratio-16x9 {
+      border-radius: 0.375rem;
+      overflow: hidden;
+      box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+    }
+    audio {
+      box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+      border-radius: 0.375rem;
+    }
+    """
+
     generator = HTMLGenerator(json_data)
-    html_content = generator.generate()
+    html_content = generator.generate(custom_css=custom_css)
 
     # Sauvegarder le HTML
     with open("test_document.html", "w", encoding="utf-8") as f:

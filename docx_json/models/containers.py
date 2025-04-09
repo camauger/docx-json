@@ -44,21 +44,48 @@ class Component(DocumentElement):
 
     component_type: str
     content: List[DocumentElement] = field(default_factory=list)
+    attributes: Dict[str, str] = field(default_factory=dict)
 
     def __init__(self, component_type: str):
         super().__init__("component")
         self.component_type = component_type
         self.content = []
+        self.attributes = {}
 
     def add_element(self, element: DocumentElement):
         """Ajoute un élément au contenu du composant."""
         self.content.append(element)
+
+    def add_attribute(self, name: str, value: str):
+        """
+        Ajoute un attribut personnalisé au composant.
+
+        Args:
+            name: Nom de l'attribut
+            value: Valeur de l'attribut
+        """
+        self.attributes[name] = value
+
+    def get_attribute(self, name: str, default: Any = None) -> Any:
+        """
+        Récupère un attribut personnalisé du composant.
+
+        Args:
+            name: Nom de l'attribut
+            default: Valeur par défaut si l'attribut n'existe pas
+
+        Returns:
+            La valeur de l'attribut ou la valeur par défaut
+        """
+        return self.attributes.get(name, default)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convertit le composant en dictionnaire pour le JSON."""
         result = super().to_dict()
         result["component_type"] = self.component_type
         result["content"] = [element.to_dict() for element in self.content]
+        if self.attributes:
+            result["attributes"] = self.attributes
         return result
 
 

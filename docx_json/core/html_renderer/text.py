@@ -24,59 +24,80 @@ class TextElementRenderer(ElementRenderer):
     def _render_paragraph(
         self, element: Dict[str, Any], indent_level: int
     ) -> List[str]:
-        # Vérifier si le paragraphe contient du texte non-vide
-        has_content = False
-        for run in element["runs"]:
-            if run["text"].strip():
-                has_content = True
-                break
+        """
+        Génère le HTML pour un paragraphe.
+
+        Args:
+            element: Dictionnaire représentant le paragraphe.
+            indent_level: Niveau d'indentation.
+
+        Returns:
+            Liste de lignes HTML.
+        """
+        indent = " " * indent_level
+
+        # Ajouter des classes Bootstrap pour les paragraphes
+        classes = element.get("html_class", "")
+        if not classes:
+            classes = "mb-3 lead"
+
+        class_attr = f' class="{classes}"' if classes else ""
+        id_attr = f' id="{element["html_id"]}"' if "html_id" in element else ""
+
+        # Ouvrir la balise avec les attributs appropriés
+        opening_tag = f"{indent}<p{class_attr}{id_attr}>"
+
+        # Formater le contenu
+        content = self._format_runs(element.get("runs", []))
 
         # Ne pas générer de HTML pour les paragraphes vides
-        if not has_content:
+        if not content:
             return []
 
-        attrs = []
-        if "html_class" in element:
-            attrs.append(f'class="{element["html_class"]}"')
-        if "html_id" in element:
-            attrs.append(f'id="{element["html_id"]}"')
-
-        attrs_str = " ".join(attrs)
-        attrs_str = f" {attrs_str}" if attrs_str else ""
-        indent = " " * indent_level
-
-        content = self._format_runs(element["runs"])
-        if content:
-            return [f"{indent}<p{attrs_str}>{''.join(content)}</p>"]
-        return []
+        # Assembler le HTML
+        return [f"{opening_tag}{''.join(content)}</p>"]
 
     def _render_heading(self, element: Dict[str, Any], indent_level: int) -> List[str]:
-        # Vérifier si le titre contient du texte non-vide
-        has_content = False
-        for run in element["runs"]:
-            if run["text"].strip():
-                has_content = True
-                break
+        """
+        Génère le HTML pour un titre.
 
-        # Ne pas générer de HTML pour les titres vides
-        if not has_content:
-            return []
+        Args:
+            element: Dictionnaire représentant le titre.
+            indent_level: Niveau d'indentation.
 
-        attrs = []
-        if "html_class" in element:
-            attrs.append(f'class="{element["html_class"]}"')
-        if "html_id" in element:
-            attrs.append(f'id="{element["html_id"]}"')
-
-        attrs_str = " ".join(attrs)
-        attrs_str = f" {attrs_str}" if attrs_str else ""
+        Returns:
+            Liste de lignes HTML.
+        """
+        level = element.get("level", 1)
         indent = " " * indent_level
 
-        content = self._format_runs(element["runs"])
-        if content:
-            level = element.get("level", 1)
-            return [f"{indent}<h{level}{attrs_str}>{''.join(content)}</h{level}>"]
-        return []
+        # Ajouter des classes Bootstrap selon le niveau
+        classes = element.get("html_class", "")
+        if level == 1:
+            classes += " display-4 fw-bold mb-4"
+        elif level == 2:
+            classes += " border-start border-4 border-success ps-2 mb-3 mt-4"
+        elif level == 3:
+            classes += " text-primary mb-3"
+        elif level == 4:
+            classes += " text-secondary fst-italic mb-2"
+
+        class_attr = f' class="{classes.strip()}"' if classes.strip() else ""
+        id_attr = f' id="{element["html_id"]}"' if "html_id" in element else ""
+
+        # Construire la balise avec les attributs appropriés
+        opening_tag = f"{indent}<h{level}{class_attr}{id_attr}>"
+        closing_tag = f"</h{level}>"
+
+        # Formater le contenu
+        content = self._format_runs(element.get("runs", []))
+
+        # Ne pas générer de HTML pour les titres vides
+        if not content:
+            return []
+
+        # Assembler le HTML
+        return [f"{opening_tag}{''.join(content)}{closing_tag}"]
 
     def _render_list_item(
         self, element: Dict[str, Any], indent_level: int

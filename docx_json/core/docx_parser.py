@@ -224,6 +224,7 @@ class DocxParser:
             match = re.match(component_pattern, text)
             if match:
                 component_type = match.group(1).strip()
+                attributes_str = match.group(2) or ""
 
                 # Vérifier si c'est un marqueur de début ou de fin de composant
                 if component_type in [
@@ -237,7 +238,23 @@ class DocxParser:
                     logging.debug(
                         f"Marqueur de début de composant détecté: {component_type}"
                     )
-                    return ComponentMarker(component_type=component_type)
+
+                    # Extraire les attributs si présents (format: attr='value' attr2="value2")
+                    component_marker = ComponentMarker(component_type=component_type)
+
+                    if attributes_str:
+                        # Pattern pour extraire les attributs au format key='value' ou key="value"
+                        attr_pattern = r"(\w+)=(['\"])(.*?)\2"
+                        for attr_match in re.finditer(attr_pattern, attributes_str):
+                            attr_name = attr_match.group(1)
+                            attr_value = attr_match.group(3)
+                            # Stocker l'attribut dans l'objet ComponentMarker
+                            setattr(component_marker, attr_name, attr_value)
+                            logging.debug(
+                                f"  Attribut détecté: {attr_name}={attr_value}"
+                            )
+
+                    return component_marker
                 elif component_type.startswith("Fin "):
                     # Extraire le type de composant sans le "Fin "
                     end_component_type = component_type[4:].strip()
