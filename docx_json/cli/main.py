@@ -58,6 +58,7 @@ def main() -> int:
             force=args.force,
             recursive=args.recursive,
             quiet=args.quiet,
+            multipage=args.multipage,
         )
 
         # Si aucun fichier trouvé, ce n'est pas forcément une erreur
@@ -91,6 +92,7 @@ def main() -> int:
             skip_existing=args.skip_existing,
             force=args.force,
             quiet=args.quiet,
+            multipage=args.multipage,
         )
 
         return 0 if success else 1
@@ -108,4 +110,3 @@ if __name__ == "__main__":
         print(f"Erreur critique: {str(e)}")
         logging.exception("Erreur critique non gérée")
         sys.exit(1)
-

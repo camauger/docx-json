@@ -28,7 +28,9 @@ def parse_args() -> argparse.Namespace:
     )
 
     # Formats de sortie
-    output_group: argparse._ArgumentGroup = parser.add_argument_group("Formats de sortie")
+    output_group: argparse._ArgumentGroup = parser.add_argument_group(
+        "Formats de sortie"
+    )
     output_group.add_argument(
         "--json", action="store_true", help="Génère un fichier JSON"
     )
@@ -40,7 +42,9 @@ def parse_args() -> argparse.Namespace:
     )
 
     # Options avancées
-    advanced_group: argparse._ArgumentGroup = parser.add_argument_group("Options avancées")
+    advanced_group: argparse._ArgumentGroup = parser.add_argument_group(
+        "Options avancées"
+    )
     advanced_group.add_argument(
         "--output-dir",
         help="Dossier de destination (par défaut: même dossier que le fichier source)",
@@ -83,6 +87,11 @@ def parse_args() -> argparse.Namespace:
         "--force",
         action="store_true",
         help="Force la conversion même si les fichiers de sortie existent déjà",
+    )
+    advanced_group.add_argument(
+        "--multipage",
+        action="store_true",
+        help="Génère des fichiers HTML séparés pour chaque saut de page (uniquement pour le format HTML)",
     )
 
     parser.add_argument(

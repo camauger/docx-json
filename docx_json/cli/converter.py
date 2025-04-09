@@ -16,6 +16,7 @@ from typing import Any, Dict, Optional, Tuple
 from docx_json.core.compatibility import (
     generate_html,
     generate_markdown,
+    generate_multi_page_html,
     get_document_json,
     validate_docx,
 )
@@ -104,6 +105,7 @@ def convert_file(
     skip_existing: bool = False,
     force: bool = False,
     quiet: bool = False,
+    multipage: bool = False,
 ) -> bool:
     """
     Convertit un fichier DOCX dans les formats demandés.
@@ -119,6 +121,7 @@ def convert_file(
         skip_existing: Ignore les fichiers déjà convertis
         force: Force la reconversion même si les fichiers existent
         quiet: Mode silencieux
+        multipage: Si True, génère plusieurs fichiers HTML aux sauts de page
 
     Returns:
         bool: True si la conversion a réussi
@@ -171,12 +174,42 @@ def convert_file(
 
         # Générer et sauvegarder le HTML si demandé
         if formats[1]:  # HTML
-            html_content = generate_html(json_data, css_path=css_path)
-            with open(output_paths["html"], "w", encoding="utf-8") as f:
-                f.write(html_content)
-            if not quiet:
-                print(f"Fichier HTML créé: '{output_paths['html']}'")
-            logging.info(f"Fichier HTML créé: '{output_paths['html']}'")
+            if multipage:
+                # Déterminer le nom de base pour les fichiers HTML
+                html_base_name = os.path.splitext(
+                    os.path.basename(output_paths["html"])
+                )[0]
+                # Utiliser le répertoire de sortie
+                html_output_dir = os.path.dirname(output_paths["html"])
+
+                # S'assurer que le répertoire de sortie est valide
+                if not html_output_dir:
+                    html_output_dir = os.path.dirname(docx_path)
+                if not html_output_dir:
+                    html_output_dir = "."
+
+                # Générer plusieurs fichiers HTML
+                html_files = generate_multi_page_html(
+                    json_data, html_output_dir, html_base_name, css_path
+                )
+
+                if not quiet:
+                    print(
+                        f"{len(html_files)} fichiers HTML créés dans: '{html_output_dir}'"
+                    )
+                    for html_file in html_files:
+                        print(f"  - '{os.path.basename(html_file)}'")
+                logging.info(
+                    f"{len(html_files)} fichiers HTML créés dans: '{html_output_dir}'"
+                )
+            else:
+                # Générer un seul fichier HTML
+                html_content = generate_html(json_data, css_path=css_path)
+                with open(output_paths["html"], "w", encoding="utf-8") as f:
+                    f.write(html_content)
+                if not quiet:
+                    print(f"Fichier HTML créé: '{output_paths['html']}'")
+                logging.info(f"Fichier HTML créé: '{output_paths['html']}'")
 
         # Générer et sauvegarder le Markdown si demandé
         if formats[2]:  # Markdown
@@ -223,4 +256,3 @@ if __name__ == "__main__":
     formats = (True, True, True)  # JSON, HTML, Markdown
 
     convert_file(docx_path, output_dir, formats=formats)
-

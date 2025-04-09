@@ -8,6 +8,7 @@ from .block import BlockRenderer
 from .component import ComponentRenderer
 from .generator import HTMLGenerator
 from .image import ImageRenderer
+from .page_break import PageBreakRenderer
 from .raw_html import RawHTMLRenderer
 from .table import TableRenderer
 from .text import TextElementRenderer
@@ -20,5 +21,6 @@ __all__ = [
     "ComponentRenderer",
     "ImageRenderer",
     "RawHTMLRenderer",
+    "PageBreakRenderer",
     "HTMLGenerator",
 ]

@@ -11,35 +11,50 @@ class TableRenderer(ElementRenderer):
     """Classe pour le rendu des tables."""
 
     def __init__(self, html_generator):
-        self.html_generator = html_generator
+        """
+        Initialise le renderer.
+
+        Args:
+            html_generator: Instance du générateur HTML principal
+        """
+        super().__init__(html_generator)
 
     def render(self, element: Dict[str, Any], indent_level: int = 0) -> List[str]:
-        # Vérifier si la table n'est pas vide
-        has_content = False
-        for row in element["rows"]:
-            if row:  # Si la ligne contient au moins une cellule
-                has_content = True
-                break
+        """
+        Génère le HTML pour un tableau.
 
-        # Ne pas générer de HTML pour les tables vides
-        if not has_content:
-            return []
+        Args:
+            element: Dictionnaire représentant le tableau
+            indent_level: Niveau d'indentation
 
+        Returns:
+            Liste de chaînes de caractères HTML
+        """
         indent = " " * indent_level
-        element_html = [f'{indent}<table class="table table-bordered">']
+        html = [f'{indent}<table class="table table-bordered">', f"{indent}  <tbody>"]
 
+        # Générer les lignes
         for row in element["rows"]:
-            element_html.append(f"{indent}  <tr>")
+            html.append(f"{indent}    <tr>")
             for cell in row:
-                element_html.append(f"{indent}    <td>")
-                for para in cell:
+                html.append(f"{indent}      <td>")
+                # Si la cellule est une liste d'éléments
+                if isinstance(cell, list):
+                    # Générer le contenu pour chaque élément de la cellule
+                    for cell_element in cell:
+                        cell_content = self.html_generator._generate_element_html(
+                            cell_element, indent_level + 8
+                        )
+                        html.extend(cell_content)
+                # Si la cellule est un élément unique
+                else:
                     cell_content = self.html_generator._generate_element_html(
-                        para, indent_level=indent_level + 6
+                        cell, indent_level + 8
                     )
-                    if cell_content:  # Ajouter uniquement si la cellule n'est pas vide
-                        element_html.extend(cell_content)
-                element_html.append(f"{indent}    </td>")
-            element_html.append(f"{indent}  </tr>")
+                    html.extend(cell_content)
+                html.append(f"{indent}      </td>")
+            html.append(f"{indent}    </tr>")
 
-        element_html.append(f"{indent}</table>")
-        return element_html
+        html.extend([f"{indent}  </tbody>", f"{indent}</table>"])
+
+        return html

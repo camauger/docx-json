@@ -273,6 +273,38 @@ def generate_html(json_data: Dict[str, Any], css_path: Optional[str] = None) -> 
     return generator.generate(custom_css)
 
 
+def generate_multi_page_html(
+    json_data: Dict[str, Any],
+    output_dir: str,
+    base_filename: str,
+    css_path: Optional[str] = None,
+) -> List[str]:
+    """
+    Génère plusieurs fichiers HTML à partir de la structure JSON, en divisant aux sauts de page
+
+    Args:
+        json_data: Dictionnaire représentant le document
+        output_dir: Répertoire de sortie pour les fichiers HTML
+        base_filename: Nom de base pour les fichiers (sans extension)
+        css_path: Chemin vers un fichier CSS personnalisé (optionnel)
+
+    Returns:
+        Liste des chemins des fichiers HTML générés
+    """
+    # Charger le CSS personnalisé s'il est spécifié
+    custom_css = None
+    if css_path:
+        try:
+            with open(css_path, "r", encoding="utf-8") as f:
+                custom_css = f.read()
+        except Exception as e:
+            logging.warning(f"Impossible de charger le CSS personnalisé: {str(e)}")
+
+    # Utiliser le générateur HTML
+    generator = HTMLGenerator(json_data)
+    return generator.generate_multi_page(output_dir, base_filename, custom_css)
+
+
 def generate_markdown(json_data: Dict[str, Any]) -> str:
     """
     Génère un document Markdown à partir de la structure JSON

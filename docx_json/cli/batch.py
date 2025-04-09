@@ -53,6 +53,7 @@ def process_batch(
     force: bool = False,
     recursive: bool = False,
     quiet: bool = False,
+    multipage: bool = False,
 ) -> Tuple[int, int]:
     """
     Traite tous les fichiers DOCX trouvés dans un dossier.
@@ -69,6 +70,7 @@ def process_batch(
         force: Force la reconversion même si les fichiers existent
         recursive: Si True, parcourt aussi les sous-dossiers
         quiet: Mode silencieux
+        multipage: Si True, génère plusieurs fichiers HTML aux sauts de page
 
     Returns:
         Tuple[int, int]: Nombre de fichiers traités avec succès et nombre total
@@ -109,6 +111,7 @@ def process_batch(
                 skip_existing=skip_existing,
                 force=force,
                 quiet=True,  # Mode silencieux pour les fichiers individuels
+                multipage=multipage,
             ):
                 success_count += 1
             progress_bar.update(1)
