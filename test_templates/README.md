@@ -5,6 +5,7 @@ Ce dossier contient des gabarits de documents conçus pour tester les fonctionna
 ## Fichiers de test
 
 ### Gabarits de base
+
 - **basic_styles.docx** - Teste les titres (h1-h6) et les styles de texte (gras, italique, souligné)
 - **lists_tables.docx** - Teste les listes (à puces, ordonnées, imbriquées) et les tableaux
 - **components.docx** - Teste les composants pédagogiques (accordéon, onglets, vidéo, etc.)
@@ -12,6 +13,7 @@ Ce dossier contient des gabarits de documents conçus pour tester les fonctionna
 - **complete_example.docx** - Combine toutes les fonctionnalités dans un document complet
 
 ### Fichiers supplémentaires
+
 - **combined.docx** - Concaténation de plusieurs documents de test
 - **local_images.docx** - Teste les images locales (SVG)
 
@@ -58,6 +60,7 @@ Les tests ont permis de vérifier que le convertisseur docx-json :
 ## Comment utiliser ces gabarits
 
 1. Pour convertir un gabarit individuel :
+
    ```bash
    python -m docx_json test_templates/basic_styles.docx --json --html --md
    ```
