@@ -80,11 +80,13 @@ class ComponentRenderer(ElementRenderer):
 
         # Construct HTML output
         return [
-            f'{indent}<div class="video-container">',
-            f'{indent}  <iframe src="https://player.vimeo.com/video/{video_id}" width="640" height="360" frameborder="0" ',
-            f'{indent}    allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>',
-            f"{indent}</div>",
-            f'{indent}<script src="https://player.vimeo.com/api/player.js"></script>',
+            f'{indent}<section class="video-component">',
+            f'{indent}  <div class="video-container">',
+            f'{indent}    <iframe src="https://player.vimeo.com/video/{video_id}" width="640" height="360" frameborder="0" ',
+            f'{indent}      allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>',
+            f"{indent}  </div>",
+            f'{indent}  <script src="https://player.vimeo.com/api/player.js"></script>',
+            f"{indent}</section>",
         ]
 
     def _render_audio(self, element: Dict[str, Any], indent_level: int) -> List[str]:
@@ -100,12 +102,13 @@ class ComponentRenderer(ElementRenderer):
         """
         indent = " " * indent_level
         element_html = [
-            f'{indent}<div class="card shadow-sm my-4 border-0">',
-            f'{indent}  <div class="card-body">',
-            f'{indent}    <audio controls class="w-100 mb-3">',
-            f'{indent}      <source src="#" type="audio/mpeg">',
-            f"{indent}      Votre navigateur ne supporte pas l'élément audio.",
-            f"{indent}    </audio>",
+            f'{indent}<section class="audio-component">',
+            f'{indent}  <div class="card shadow-sm my-4 border-0">',
+            f'{indent}    <div class="card-body">',
+            f'{indent}      <audio controls class="w-100 mb-3">',
+            f'{indent}        <source src="#" type="audio/mpeg">',
+            f"{indent}        Votre navigateur ne supporte pas l'élément audio.",
+            f"{indent}      </audio>",
         ]
 
         has_content = False
@@ -114,7 +117,7 @@ class ComponentRenderer(ElementRenderer):
             for content_elem in element["content"]:
                 # Générer le HTML pour l'élément de contenu
                 content_html = self.html_generator._generate_element_html(
-                    content_elem, indent_level=indent_level + 4
+                    content_elem, indent_level=indent_level + 6
                 )
 
                 # S'assurer que le contenu est une liste de chaînes
@@ -125,8 +128,9 @@ class ComponentRenderer(ElementRenderer):
                         if isinstance(item, str):
                             element_html.append(item)
 
+        element_html.append(f"{indent}    </div>")
         element_html.append(f"{indent}  </div>")
-        element_html.append(f"{indent}</div>")
+        element_html.append(f"{indent}</section>")
         return element_html
 
     def _render_accordion(
@@ -147,7 +151,8 @@ class ComponentRenderer(ElementRenderer):
 
         # Commencer l'accordéon avec des classes améliorées
         element_html = [
-            f'{indent}<div class="accordion accordion-flush my-4 shadow-sm border" id="{accordion_id}">',
+            f'{indent}<section class="accordion-component">',
+            f'{indent}  <div class="accordion accordion-flush my-4 shadow-sm border" id="{accordion_id}">',
         ]
 
         # Parcourir les éléments pour créer les items de l'accordéon
@@ -168,7 +173,7 @@ class ComponentRenderer(ElementRenderer):
                                 item_count,
                                 current_item,
                                 item_content,
-                                indent,
+                                indent + "  ",
                             )
                         )
                         item_content = []
@@ -179,7 +184,7 @@ class ComponentRenderer(ElementRenderer):
                 else:
                     # Générer le HTML pour l'élément de contenu
                     content_html = self.html_generator._generate_element_html(
-                        content_elem, indent_level=indent_level + 6
+                        content_elem, indent_level=indent_level + 8
                     )
 
                     # S'assurer que le contenu est une liste de chaînes
@@ -191,11 +196,16 @@ class ComponentRenderer(ElementRenderer):
                 item_count += 1
                 element_html.extend(
                     self._create_accordion_item(
-                        accordion_id, item_count, current_item, item_content, indent
+                        accordion_id,
+                        item_count,
+                        current_item,
+                        item_content,
+                        indent + "  ",
                     )
                 )
 
-        element_html.append(f"{indent}</div>")
+        element_html.append(f"{indent}  </div>")
+        element_html.append(f"{indent}</section>")
         return element_html
 
     def _create_accordion_item(
@@ -228,18 +238,18 @@ class ComponentRenderer(ElementRenderer):
                 final_content.append(item)
 
         return [
-            f'{indent}  <div class="accordion-item">',
-            f'{indent}    <h2 class="accordion-header" id="heading-{item_id}">',
-            f'{indent}      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{item_id}" aria-expanded="false" aria-controls="collapse-{item_id}">',
-            f"{indent}        {title}",
-            f"{indent}      </button>",
-            f"{indent}    </h2>",
-            f'{indent}    <div id="collapse-{item_id}" class="accordion-collapse collapse" aria-labelledby="heading-{item_id}" data-bs-parent="#{accordion_id}">',
-            f'{indent}      <div class="accordion-body">',
+            f'{indent}    <div class="accordion-item">',
+            f'{indent}      <h2 class="accordion-header" id="heading-{item_id}">',
+            f'{indent}        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{item_id}" aria-expanded="false" aria-controls="collapse-{item_id}">',
+            f"{indent}          {title}",
+            f"{indent}        </button>",
+            f"{indent}      </h2>",
+            f'{indent}      <div id="collapse-{item_id}" class="accordion-collapse collapse" aria-labelledby="heading-{item_id}" data-bs-parent="#{accordion_id}">',
+            f'{indent}        <div class="accordion-body">',
             *final_content,
+            f"{indent}        </div>",
             f"{indent}      </div>",
             f"{indent}    </div>",
-            f"{indent}  </div>",
         ]
 
     def _render_tabs(self, element: Dict[str, Any], indent_level: int) -> List[str]:
@@ -258,9 +268,10 @@ class ComponentRenderer(ElementRenderer):
 
         # Commencer les onglets avec des classes améliorées
         element_html = [
-            f'{indent}<div class="tabs-container card border-0 shadow-sm">',
-            f'{indent}  <div class="card-header bg-white">',
-            f'{indent}    <ul class="nav nav-tabs card-header-tabs" id="{tabs_id}" role="tablist">',
+            f'{indent}<section class="tabs-component">',
+            f'{indent}  <div class="tabs-container card border-0 shadow-sm">',
+            f'{indent}    <div class="card-header bg-white">',
+            f'{indent}      <ul class="nav nav-tabs card-header-tabs" id="{tabs_id}" role="tablist">',
         ]
 
         # Collecter les onglets
@@ -298,20 +309,20 @@ class ComponentRenderer(ElementRenderer):
                 active = " active" if i == 0 else ""
                 selected = "true" if i == 0 else "false"
                 element_html.append(
-                    f'{indent}      <li class="nav-item" role="presentation">',
+                    f'{indent}        <li class="nav-item" role="presentation">',
                 )
                 element_html.append(
-                    f'{indent}        <button class="nav-link{active}" id="{tab_id}" data-bs-toggle="tab" data-bs-target="#{tab_id}-pane" type="button" role="tab" aria-controls="{tab_id}-pane" aria-selected="{selected}">{title}</button>',
+                    f'{indent}          <button class="nav-link{active}" id="{tab_id}" data-bs-toggle="tab" data-bs-target="#{tab_id}-pane" type="button" role="tab" aria-controls="{tab_id}-pane" aria-selected="{selected}">{title}</button>',
                 )
                 element_html.append(
-                    f"{indent}      </li>",
+                    f"{indent}        </li>",
                 )
 
-            element_html.append(f"{indent}    </ul>")
-            element_html.append(f"{indent}  </div>")
-            element_html.append(f'{indent}  <div class="card-body">')
+            element_html.append(f"{indent}      </ul>")
+            element_html.append(f"{indent}    </div>")
+            element_html.append(f'{indent}    <div class="card-body">')
             element_html.append(
-                f'{indent}    <div class="tab-content" id="{tabs_id}-content">'
+                f'{indent}      <div class="tab-content" id="{tabs_id}-content">'
             )
 
             # Générer le contenu des onglets
@@ -327,16 +338,21 @@ class ComponentRenderer(ElementRenderer):
 
                 element_html.extend(
                     [
-                        f'{indent}      <div class="tab-pane fade{active}" id="{tab_id}-pane" role="tabpanel" aria-labelledby="{tab_id}" tabindex="0">',
-                        f'{indent}        <div class="py-3">',
+                        f'{indent}        <div class="tab-pane fade{active}" id="{tab_id}-pane" role="tabpanel" aria-labelledby="{tab_id}" tabindex="0">',
+                        f'{indent}          <div class="py-3">',
                         *filtered_content,
+                        f"{indent}          </div>",
                         f"{indent}        </div>",
-                        f"{indent}      </div>",
                     ]
                 )
 
         element_html.extend(
-            [f"{indent}    </div>", f"{indent}  </div>", f"{indent}</div>"]
+            [
+                f"{indent}      </div>",
+                f"{indent}    </div>",
+                f"{indent}  </div>",
+                f"{indent}</section>",
+            ]
         )
 
         return element_html
@@ -354,195 +370,225 @@ class ComponentRenderer(ElementRenderer):
         """
         indent = " " * indent_level
         carousel_id = element.get("html_id", "mainCarousel")
-        interval = element.get(
-            "interval", "5000"
-        )  # Intervalle en ms entre les diapositives
 
-        # CSS personnalisé pour le carousel
+        print(f"DEBUG - Rendu du carrousel: {carousel_id}")
+
+        # Ajouter des styles CSS pour améliorer l'apparence du carousel
         element_html = [
-            f"{indent}<style>",
-            f"{indent}  #{carousel_id} .carousel-control-prev-icon, #{carousel_id} .carousel-control-next-icon {{",
-            f"{indent}    background-color: rgba(0, 0, 0, 0.5);",
-            f"{indent}    border-radius: 50%;",
-            f"{indent}    padding: 10px;",
-            f"{indent}  }}",
-            f"{indent}  #{carousel_id} .carousel-indicators button {{",
-            f"{indent}    background-color: rgba(0, 0, 0, 0.6);",
-            f"{indent}    width: 30px;",
-            f"{indent}    height: 3px;",
-            f"{indent}    margin-right: 3px;",
-            f"{indent}    margin-left: 3px;",
-            f"{indent}  }}",
-            f"{indent}  #{carousel_id} .carousel-item img {{",
-            f"{indent}    max-width: 100%;",
-            f"{indent}    height: auto;",
-            f"{indent}    margin: 0 auto;",
-            f"{indent}    display: block;",
-            f"{indent}  }}",
-            f"{indent}</style>",
-            f'{indent}<div id="{carousel_id}" class="carousel slide shadow">',
+            f'{indent}<section class="carousel-component">',
+            f"{indent}  <style>",
+            f"{indent}    #{carousel_id} .carousel-control-prev-icon, #{carousel_id} .carousel-control-next-icon {{",
+            f"{indent}      background-color: rgba(0, 0, 0, 0.5);",
+            f"{indent}      border-radius: 50%;",
+            f"{indent}      padding: 10px;",
+            f"{indent}    }}",
+            f"{indent}    #{carousel_id} .carousel-indicators button {{",
+            f"{indent}      background-color: rgba(0, 0, 0, 0.6);",
+            f"{indent}      width: 30px;",
+            f"{indent}      height: 3px;",
+            f"{indent}      margin-right: 3px;",
+            f"{indent}      margin-left: 3px;",
+            f"{indent}    }}",
+            f"{indent}    #{carousel_id} .carousel-item img {{",
+            f"{indent}      max-width: 100%;",
+            f"{indent}      height: auto;",
+            f"{indent}      margin: 0 auto;",
+            f"{indent}      display: block;",
+            f"{indent}    }}",
+            f"{indent}  </style>",
+            f'{indent}  <div id="{carousel_id}" class="carousel slide shadow">',
         ]
 
-        # Collecter les diapositives
+        # Vérifier que l'élément a du contenu
         slides = []
-        current_slide = None
-        slide_content = []
+        slide_titles = []
+        slide_contents = []
         slide_images = []
 
-        # S'assurer que l'élément a du contenu
         if "content" in element and element["content"]:
+            current_slide_content = []
+            current_slide_title = None
+            current_slide_image = None
+
+            # Parcourir les éléments pour extraire les slides
             for content_elem in element["content"]:
-                # Détecter les titres de diapositive
+                print(f"DEBUG - Élément carousel: {content_elem.get('type')}")
+
                 if content_elem["type"] == "heading":
-                    # Si nous avons déjà un slide, l'ajouter à la liste
-                    if current_slide and (slide_content or slide_images):
-                        slides.append((current_slide, slide_content, slide_images))
-                        slide_content = []
-                        slide_images = []
+                    # Si on a déjà un titre pour cette diapositive, c'est une nouvelle diapositive
+                    if current_slide_title is not None:
+                        slide_titles.append(current_slide_title)
+                        slide_contents.append(current_slide_content)
+                        slide_images.append(current_slide_image)
+                        current_slide_content = []
+                        current_slide_image = None
 
+                    # Récupérer le titre de la diapositive
                     if "runs" in content_elem:
-                        current_slide = "".join(self._format_runs(content_elem["runs"]))
-                # Détecter les images attachées directement au composant
-                elif content_elem["type"] == "image":
-                    slide_images.append(content_elem)
-                # Détecter les paragraphes contenant des images
-                elif content_elem["type"] == "paragraph" and "image" in content_elem:
-                    slide_images.append(content_elem["image"])
-                # Détecter les images dans les paragraphes (format docx)
-                elif content_elem["type"] == "paragraph" and "runs" in content_elem:
-                    for run in content_elem["runs"]:
-                        if "image" in run:
-                            slide_images.append(run["image"])
+                        current_slide_title = "".join(
+                            self._format_runs(content_elem["runs"])
+                        )
 
-                    # Aussi ajouter le texte du paragraphe
+                    # Vérifier si le titre contient une image
+                    if "image" in content_elem:
+                        current_slide_image = content_elem["image"].get("path", "")
+                        print(
+                            f"DEBUG - Image trouvée dans heading (image): {current_slide_image}"
+                        )
+                    elif "images" in content_elem and content_elem["images"]:
+                        current_slide_image = content_elem["images"][0].get("path", "")
+                        print(
+                            f"DEBUG - Image trouvée dans heading (images): {current_slide_image}"
+                        )
+
+                elif content_elem["type"] == "image":
+                    # Stocker l'image pour cette diapositive
+                    current_slide_image = content_elem.get("image_path", "")
+                    print(f"DEBUG - Image trouvée (type=image): {current_slide_image}")
+                elif "image" in content_elem:
+                    # Si l'élément a une image directement
+                    current_slide_image = content_elem["image"].get("path", "")
+                    print(f"DEBUG - Image trouvée (attr image): {current_slide_image}")
+                elif "images" in content_elem and content_elem["images"]:
+                    # Si l'élément a des images
+                    current_slide_image = content_elem["images"][0].get("path", "")
+                    print(f"DEBUG - Image trouvée (attr images): {current_slide_image}")
+                elif content_elem["type"] == "paragraph":
+                    # Générer le HTML pour le paragraphe
                     content_html = self.html_generator._generate_element_html(
-                        content_elem, indent_level=indent_level + 6
+                        content_elem, indent_level=0
                     )
-                    if content_html and isinstance(content_html, list):
-                        slide_content.extend(content_html)
+                    if content_html:
+                        current_slide_content.extend(content_html)
+
+                    # Vérifier si le paragraphe contient une image
+                    if not current_slide_image:
+                        # Vérifier toutes les façons possibles d'avoir une image
+                        if "image" in content_elem:
+                            current_slide_image = content_elem["image"].get("path", "")
+                            print(
+                                f"DEBUG - Image trouvée dans paragraphe (image): {current_slide_image}"
+                            )
+                        elif "images" in content_elem and content_elem["images"]:
+                            current_slide_image = content_elem["images"][0].get(
+                                "path", ""
+                            )
+                            print(
+                                f"DEBUG - Image trouvée dans paragraphe (images): {current_slide_image}"
+                            )
+                        elif (
+                            "attributes" in content_elem
+                            and "images" in content_elem["attributes"]
+                        ):
+                            # Images stockées dans les attributs
+                            images = content_elem["attributes"]["images"]
+                            if images and len(images) > 0:
+                                current_slide_image = images[0].get("path", "")
+                                print(
+                                    f"DEBUG - Image trouvée dans attributs: {current_slide_image}"
+                                )
+
+                        # Vérifier dans les runs s'ils contiennent des images
+                        if "runs" in content_elem:
+                            for run in content_elem["runs"]:
+                                if "image" in run:
+                                    current_slide_image = run["image"].get("path", "")
+                                    print(
+                                        f"DEBUG - Image trouvée dans run: {current_slide_image}"
+                                    )
+                                    break
                 else:
                     # Générer le HTML pour l'élément de contenu
                     content_html = self.html_generator._generate_element_html(
-                        content_elem, indent_level=indent_level + 6
+                        content_elem, indent_level=0
                     )
-
-                    # S'assurer que le contenu est une liste de chaînes
-                    if content_html and isinstance(content_html, list):
-                        slide_content.extend(content_html)
-
-            # Également parcourir les attributs pour chercher des images
-            for attr_name, attr_value in element.items():
-                if attr_name.startswith("image_") and attr_value:
-                    slide_images.append(
-                        {"src": attr_value, "alt_text": "Image du carousel"}
-                    )
+                    if content_html:
+                        current_slide_content.extend(content_html)
 
             # Ajouter la dernière diapositive
-            if current_slide and (slide_content or slide_images):
-                slides.append((current_slide, slide_content, slide_images))
+            if current_slide_title is not None:
+                slide_titles.append(current_slide_title)
+                slide_contents.append(current_slide_content)
+                slide_images.append(current_slide_image)
 
-            # Générer les indicateurs
-            element_html.append(f'{indent}  <div class="carousel-indicators">')
-            for i in range(len(slides)):
-                active = ' class="active"' if i == 0 else ""
-                element_html.append(
-                    f'{indent}    <button type="button" data-bs-target="#{carousel_id}" data-bs-slide-to="{i}"{active}></button>'
-                )
-            element_html.append(f"{indent}  </div>")
+        # Génération des images depuis le document
+        if not slide_images or all(img is None or img == "" for img in slide_images):
+            print(f"DEBUG - Aucune image n'a été trouvée pour ce carrousel")
 
-            # Générer le contenu du carrousel
-            element_html.append(f'{indent}  <div class="carousel-inner rounded">')
-            for i, (title, content, images) in enumerate(slides):
-                active = " active" if i == 0 else ""
+        # Générer les indicateurs de diapositive
+        element_html.append(f'{indent}  <div class="carousel-indicators">')
+        for i in range(len(slide_titles)):
+            active = "active" if i == 0 else ""
+            element_html.append(
+                f'{indent}    <button type="button" data-bs-target="#{carousel_id}" data-bs-slide-to="{i}" class="{active}"></button>'
+            )
+        element_html.append(f"{indent}  </div>")
 
-                # Filtrer les éléments invalides
-                filtered_content = []
-                for item in content:
-                    if isinstance(item, str):
-                        filtered_content.append(item)
-
-                element_html.append(f'{indent}    <div class="carousel-item{active}">')
-                element_html.append(
-                    f'{indent}      <div class="carousel-content p-4 bg-light">'
-                )
-                element_html.append(
-                    f'{indent}        <h4 class="mb-3 text-primary">{title}</h4>'
-                )
-
-                # Ajouter le contenu texte
-                element_html.extend(filtered_content)
-
-                # Ajouter les images
-                for img in images:
-                    src = ""
-                    alt_text = title
-
-                    # Extraire l'URL de l'image selon le format
-                    if isinstance(img, dict):
-                        if "src" in img:
-                            src = img["src"]
-                        elif "path" in img:
-                            src = img["path"]
-                        elif "url" in img:
-                            src = img["url"]
-
-                        # Extraire le texte alternatif si disponible
-                        if "alt_text" in img:
-                            alt_text = img["alt_text"]
-                        elif "alt" in img:
-                            alt_text = img["alt"]
-                    elif isinstance(img, str):
-                        src = img
-
-                    # Ajouter l'image au HTML uniquement si nous avons une source
-                    if src:
-                        element_html.append(
-                            f'{indent}        <div class="text-center mt-3">'
-                        )
-                        element_html.append(
-                            f'{indent}          <img src="{src}" alt="{alt_text}" class="img-fluid rounded">'
-                        )
-                        element_html.append(f"{indent}        </div>")
-
-                element_html.append(f"{indent}      </div>")
-                element_html.append(f"{indent}    </div>")
-
-            element_html.append(f"{indent}  </div>")
-
-            # Ajouter les contrôles de navigation
-            element_html.extend(
-                [
-                    f'{indent}  <button class="carousel-control-prev" type="button" data-bs-target="#{carousel_id}" data-bs-slide="prev">',
-                    f'{indent}    <span class="carousel-control-prev-icon" aria-hidden="true"></span>',
-                    f'{indent}    <span class="visually-hidden">Précédent</span>',
-                    f"{indent}  </button>",
-                    f'{indent}  <button class="carousel-control-next" type="button" data-bs-target="#{carousel_id}" data-bs-slide="next">',
-                    f'{indent}    <span class="carousel-control-next-icon" aria-hidden="true"></span>',
-                    f'{indent}    <span class="visually-hidden">Suivant</span>',
-                    f"{indent}  </button>",
-                ]
+        # Générer les diapositives
+        element_html.append(f'{indent}  <div class="carousel-inner rounded">')
+        for i, (title, content, image) in enumerate(
+            zip(slide_titles, slide_contents, slide_images)
+        ):
+            active = "active" if i == 0 else ""
+            element_html.append(f'{indent}    <div class="carousel-item {active}">')
+            element_html.append(
+                f'{indent}      <div class="carousel-content p-4 bg-light">'
+            )
+            element_html.append(
+                f'{indent}        <h4 class="mb-3 text-primary">{title}</h4>'
             )
 
-        element_html.append(f"{indent}</div>")
+            # Ajouter le contenu
+            for line in content:
+                element_html.append(f"{indent}      {line}")
 
-        # Ajouter un script pour initialiser manuellement le carrousel
+            # Ajouter l'image si elle existe
+            if image:
+                print(f"DEBUG - Ajout de l'image {image} à la diapositive {i+1}")
+                element_html.append(f'{indent}        <div class="text-center mt-3">')
+                element_html.append(
+                    f'{indent}          <img src="{image}" class="img-fluid rounded" alt="{title}">'
+                )
+                element_html.append(f"{indent}        </div>")
+
+            element_html.append(f"{indent}      </div>")
+            element_html.append(f"{indent}    </div>")
+        element_html.append(f"{indent}  </div>")
+
+        # Ajouter les contrôles
         element_html.extend(
             [
-                f"{indent}<script>",
-                f"{indent}  document.addEventListener('DOMContentLoaded', function() {{",
-                f"{indent}    setTimeout(function() {{",
-                f"{indent}      var carousel = document.getElementById('{carousel_id}');",
-                f"{indent}      if (carousel) {{",
-                f"{indent}        new bootstrap.Carousel(carousel, {{",
-                f"{indent}          interval: {interval},",
-                f"{indent}          keyboard: true,",
-                f"{indent}          pause: 'hover',",
-                f"{indent}          wrap: true",
-                f"{indent}        }});",
-                f"{indent}      }}",
-                f"{indent}    }}, 100);",
-                f"{indent}  }});",
-                f"{indent}</script>",
+                f'{indent}  <button class="carousel-control-prev" type="button" data-bs-target="#{carousel_id}" data-bs-slide="prev">',
+                f'{indent}    <span class="carousel-control-prev-icon" aria-hidden="true"></span>',
+                f'{indent}    <span class="visually-hidden">Précédent</span>',
+                f"{indent}  </button>",
+                f'{indent}  <button class="carousel-control-next" type="button" data-bs-target="#{carousel_id}" data-bs-slide="next">',
+                f'{indent}    <span class="carousel-control-next-icon" aria-hidden="true"></span>',
+                f'{indent}    <span class="visually-hidden">Suivant</span>',
+                f"{indent}  </button>",
+            ]
+        )
+        element_html.append(f"{indent}</div>")
+
+        # Ajouter un script pour initialiser manuellement le carousel
+        element_html.extend(
+            [
+                f"{indent}  <script>",
+                f"{indent}    document.addEventListener('DOMContentLoaded', function() {{",
+                f"{indent}      setTimeout(function() {{",
+                f"{indent}        var carousel = document.getElementById('{carousel_id}');",
+                f"{indent}        if (carousel) {{",
+                f"{indent}          new bootstrap.Carousel(carousel, {{",
+                f"{indent}            interval: 5000,",
+                f"{indent}            keyboard: true,",
+                f"{indent}            pause: 'hover',",
+                f"{indent}            wrap: true",
+                f"{indent}          }});",
+                f"{indent}        }}",
+                f"{indent}      }}, 100);",
+                f"{indent}    }});",
+                f"{indent}  </script>",
+                f"{indent}</section>",
             ]
         )
 
@@ -554,10 +600,11 @@ class ComponentRenderer(ElementRenderer):
         indent = " " * indent_level
         scrollspy_id = f"scrollspy-{id(element)}"
         element_html = [
-            f'{indent}<div class="row my-4">',
-            f'{indent}  <div class="col-4">',
-            f'{indent}    <nav id="{scrollspy_id}" class="navbar navbar-light bg-light flex-column align-items-stretch p-3">',
-            f'{indent}      <nav class="nav nav-pills flex-column">',
+            f'{indent}<section class="scrollspy-component">',
+            f'{indent}  <div class="row my-4">',
+            f'{indent}    <div class="col-4">',
+            f'{indent}      <nav id="{scrollspy_id}" class="navbar navbar-light bg-light flex-column align-items-stretch p-3">',
+            f'{indent}        <nav class="nav nav-pills flex-column">',
         ]
 
         # Créer les liens de navigation
@@ -573,7 +620,7 @@ class ComponentRenderer(ElementRenderer):
                     has_items = True
                     active = " active" if i == 0 else ""
                     element_html.append(
-                        f'{indent}        <a class="nav-link{active}" href="#{item_id}">{item_title}</a>'
+                        f'{indent}          <a class="nav-link{active}" href="#{item_id}">{item_title}</a>'
                     )
                     nav_items.append((item_id, content_elem, []))
             elif len(nav_items) > 0:
@@ -590,11 +637,11 @@ class ComponentRenderer(ElementRenderer):
 
         element_html.extend(
             [
+                f"{indent}        </nav>",
                 f"{indent}      </nav>",
-                f"{indent}    </nav>",
-                f"{indent}  </div>",
-                f'{indent}  <div class="col-8">',
-                f'{indent}    <div data-bs-spy="scroll" data-bs-target="#{scrollspy_id}" data-bs-offset="0" class="scrollspy-example-2" tabindex="0" style="height: 400px; overflow-y: scroll;">',
+                f"{indent}    </div>",
+                f'{indent}    <div class="col-8">',
+                f'{indent}      <div data-bs-spy="scroll" data-bs-target="#{scrollspy_id}" data-bs-offset="0" class="scrollspy-example-2" tabindex="0" style="height: 400px; overflow-y: scroll;">',
             ]
         )
 
@@ -603,14 +650,19 @@ class ComponentRenderer(ElementRenderer):
             heading_text = " ".join([run["text"] for run in heading["runs"]])
             if heading_text.strip():
                 element_html.append(
-                    f'{indent}      <h4 id="{item_id}">{heading_text}</h4>'
+                    f'{indent}        <h4 id="{item_id}">{heading_text}</h4>'
                 )
 
             if content_elems:
                 element_html.extend(content_elems)
 
         element_html.extend(
-            [f"{indent}    </div>", f"{indent}  </div>", f"{indent}</div>"]
+            [
+                f"{indent}      </div>",
+                f"{indent}    </div>",
+                f"{indent}  </div>",
+                f"{indent}</section>",
+            ]
         )
 
         return element_html
@@ -620,14 +672,15 @@ class ComponentRenderer(ElementRenderer):
         # Extraire le type de composant du texte du premier run
         component_type = element["runs"][0]["text"].strip("[]")
         element_html = [
-            f'{indent}<div class="component-{component_type.lower()} p-3 my-3 border">',
-            f"{indent}  <h3>{component_type}</h3>",
+            f'{indent}<section class="component-generic">',
+            f'{indent}  <div class="component-{component_type.lower()} p-3 my-3 border">',
+            f"{indent}    <h3>{component_type}</h3>",
         ]
 
         has_content = False
         for content_elem in element["content"]:
             content = self.html_generator._generate_element_html(
-                content_elem, indent_level=indent_level + 2
+                content_elem, indent_level=indent_level + 4
             )
             if content:
                 has_content = True
@@ -637,5 +690,6 @@ class ComponentRenderer(ElementRenderer):
         if not has_content:
             return []
 
-        element_html.append(f"{indent}</div>")
+        element_html.append(f"{indent}  </div>")
+        element_html.append(f"{indent}</section>")
         return element_html

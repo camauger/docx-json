@@ -189,8 +189,8 @@ class DocxParser:
         """
         Regroupe les éléments de liste consécutifs en un seul DocumentList.
         """
-        grouped_elements = []
-        current_list = None
+        grouped_elements: List[DocumentElement] = []
+        current_list: Optional[DocumentList] = None
 
         for element in elements:
             if isinstance(element, DocumentList):
@@ -220,11 +220,11 @@ class DocxParser:
         text = paragraph.text.strip()
         if text.startswith("[") and text.endswith("]"):
             # Extraire le type de composant et les attributs HTML
-            component_pattern = r"\[([\w\s]+)(?:\s+(.+))?\]"
-            match = re.match(component_pattern, text)
+            component_pattern: str = r"\[([\w\s]+)(?:\s+(.+))?\]"
+            match: Optional[re.Match] = re.match(component_pattern, text)
             if match:
-                component_type = match.group(1).strip()
-                attributes_str = match.group(2) or ""
+                component_type: str = match.group(1).strip()
+                attributes_str: str = match.group(2) or ""
 
                 # Vérifier si c'est un marqueur de début ou de fin de composant
                 if component_type in [
@@ -246,8 +246,8 @@ class DocxParser:
                         # Pattern pour extraire les attributs au format key='value' ou key="value"
                         attr_pattern = r"(\w+)=(['\"])(.*?)\2"
                         for attr_match in re.finditer(attr_pattern, attributes_str):
-                            attr_name = attr_match.group(1)
-                            attr_value = attr_match.group(3)
+                            attr_name: str = attr_match.group(1)
+                            attr_value: str = attr_match.group(3)
                             # Stocker l'attribut dans l'objet ComponentMarker
                             setattr(component_marker, attr_name, attr_value)
                             logging.debug(
@@ -257,7 +257,7 @@ class DocxParser:
                     return component_marker
                 elif component_type.startswith("Fin "):
                     # Extraire le type de composant sans le "Fin "
-                    end_component_type = component_type[4:].strip()
+                    end_component_type: str = component_type[4:].strip()
                     logging.debug(
                         f"Marqueur de fin de composant détecté: {end_component_type}"
                     )
@@ -268,7 +268,7 @@ class DocxParser:
             run._element.find(".//pic:pic", namespaces=self.NAMESPACES) is not None
             for run in paragraph.runs
         ):
-            image_data = self._parse_image(paragraph)
+            image_data: Dict[str, Any] = self._parse_image(paragraph)
             image = Image(alt_text=image_data["alt_text"])
             if "rId" in image_data:
                 image.rId = image_data["rId"]
@@ -276,7 +276,7 @@ class DocxParser:
                 image.image_path = image_data["image_path"]
             return image
 
-        # Vérifier s'il y a des images intégrées dans les runs du paragraphe
+        # Extraire toutes les images intégrées dans les runs du paragraphe
         paragraph_images = []
         for run in paragraph.runs:
             for blip in run._element.findall(".//a:blip", namespaces=self.NAMESPACES):
@@ -328,6 +328,10 @@ class DocxParser:
                 heading.add_attribute("images", paragraph_images)
 
             return heading
+
+        # Si le paragraphe est vide, on évite de le créer
+        if not paragraph.text.strip() and not paragraph_images:
+            return Paragraph()
 
         # Vérifier si c'est un élément de liste
         if (
@@ -395,12 +399,12 @@ class DocxParser:
         table_element = Table()
 
         for row in table.rows:
-            row_content = []
+            row_content: List[List[DocumentElement]] = []
             for cell in row.cells:
                 # Une cellule peut contenir plusieurs paragraphes
-                cell_content = []
+                cell_content: List[DocumentElement] = []
                 for paragraph in cell.paragraphs:
-                    para_element = self.parse_paragraph(paragraph)
+                    para_element: DocumentElement = self.parse_paragraph(paragraph)
                     # Ignorer les instructions dans les cellules
                     if para_element is not None and not isinstance(
                         para_element, Instruction
@@ -418,9 +422,9 @@ class DocxParser:
         if not self._document:
             raise ValueError("No document loaded")
 
-        elements = []
+        elements: List[DocumentElement] = []
         for paragraph in self._document.paragraphs:
-            para_element = self.parse_paragraph(paragraph)
+            para_element: DocumentElement = self.parse_paragraph(paragraph)
             if para_element is not None and not isinstance(para_element, Instruction):
                 elements.append(para_element)
 

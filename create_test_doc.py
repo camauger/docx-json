@@ -190,7 +190,7 @@ def create_test_document() -> None:
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     # Ajouter une image à la première diapositive
     run = p.add_run()
-    run.add_picture("test_templates/images/placeholder1.jpg", width=Pt(300))
+    run.add_picture("./test_templates/images/placeholder1.jpg", width=Pt(300))
 
     # Diapositive 2 avec image
     doc.add_heading("Diapositive 2", level=4)

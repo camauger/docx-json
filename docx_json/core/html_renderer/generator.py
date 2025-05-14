@@ -128,8 +128,8 @@ class HTMLGenerator:
                 "    </div>",
                 "  </header>",
                 "  <!-- Contenu principal -->",
-                "  <main>",
-                '    <div class="container py-4">',  # Ajouter un padding vertical
+                "  <main class='container'>",
+                '    <div class="col-8 m-auto py-4">',  # Ajouter un padding vertical
             ]
         )
 
@@ -257,81 +257,45 @@ class HTMLGenerator:
         self, element: Dict[str, Any], indent_level: int = 0
     ) -> List[str]:
         """
-        Génère le HTML pour un élément de document.
+        Génère le HTML pour un élément spécifique.
 
         Args:
-            element: Élément de document à rendre
-            indent_level: Niveau d'indentation courant
+            element: Données de l'élément
+            indent_level: Niveau d'indentation
 
         Returns:
             Liste de lignes HTML
         """
-        element_type = element.get("type", "unknown")
         element_html = []
-        indent = " " * indent_level
+        indent = "  " * indent_level
 
         try:
-            # Détection directe pour les paragraphes contenant des marqueurs vidéo
-            if element_type == "paragraph" and "runs" in element:
-                # Vérifier que runs est une liste
-                if not isinstance(element["runs"], list):
-                    # Cas où runs n'est pas une liste valide
-                    print(
-                        f"DEBUG - 'runs' n'est pas une liste: {type(element['runs'])}"
-                    )
-                    return [
-                        f"{indent}<!-- Erreur: 'runs' n'est pas une liste valide -->",
-                        f'{indent}<div class="rendering-error">(Erreur de structure)</div>',
-                    ]
+            element_type = element.get("type", "unknown")
 
-                # Extraire le texte complet si runs est valide
-                text = ""
+            # Traitement spécial pour les composants vidéo
+            if element_type == "component" and element.get("component_type") == "Vidéo":
+                # Traitement spécial pour les composants vidéo
+                return self._render_video_component(element, indent_level)
+
+            # Vérifier si c'est un paragraphe avec un marqueur de vidéo
+            if element_type == "paragraph" and "runs" in element:
+                # Extraire le texte complet du paragraphe
+                full_text = ""
                 for run in element["runs"]:
-                    if isinstance(run, dict) and "text" in run:
-                        text += run.get("text", "")
-                    else:
-                        print(f"DEBUG - run invalide: {run}")
-                        continue
+                    full_text += run.get("text", "")
 
                 # Vérifier si c'est un marqueur de vidéo
-                if text.startswith("[Vidéo") and "]" in text:
-                    print(f"DEBUG - Marqueur vidéo détecté: '{text}'")
-
-                    # Extraire l'ID
-                    video_id = "1069341210"  # Valeur par défaut
-
-                    # Chercher l'attribut video_id avec quotes simples
-                    if "video_id='" in text:
-                        start_idx = text.find("video_id='")
-                        if start_idx >= 0:
-                            start_idx += 10  # Longueur de "video_id='"
-                            end_idx = text.find("'", start_idx)
-                            if end_idx > start_idx:
-                                video_id = text[start_idx:end_idx]
-                                print(
-                                    f"DEBUG - ID vidéo trouvé (quotes simples): '{video_id}'"
-                                )
-
-                    # Chercher l'attribut video_id avec quotes doubles
-                    elif 'video_id="' in text:
-                        start_idx = text.find('video_id="')
-                        if start_idx >= 0:
-                            start_idx += 10  # Longueur de 'video_id="'
-                            end_idx = text.find('"', start_idx)
-                            if end_idx > start_idx:
-                                video_id = text[start_idx:end_idx]
-                                print(
-                                    f"DEBUG - ID vidéo trouvé (quotes doubles): '{video_id}'"
-                                )
-
-                    # Rendu direct de l'iframe vidéo
-                    return [
-                        f'{indent}<div class="video-container">',
-                        f'{indent}  <iframe src="https://player.vimeo.com/video/{video_id}" width="640" height="360" frameborder="0"',
-                        f'{indent}          allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>',
-                        f"{indent}</div>",
-                        f'{indent}<script src="https://player.vimeo.com/api/player.js"></script>',
-                    ]
+                if full_text.strip().startswith("[Vidéo") and "]" in full_text:
+                    print(
+                        f"DEBUG - Marqueur vidéo détecté dans le paragraphe: '{full_text}'"
+                    )
+                    # Utiliser le renderer vidéo pour traiter cet élément
+                    video_renderer = self._renderers.get("video")
+                    if video_renderer:
+                        return video_renderer.render(element, indent_level)
+                    else:
+                        # Fallback au rendu direct si le renderer n'est pas disponible
+                        return self._render_paragraph_video(full_text, indent_level)
 
             # Utiliser les renderers pour les autres types d'éléments
             renderer = self._renderers.get(element_type)
@@ -358,4 +322,91 @@ class HTMLGenerator:
             element_html.append(
                 f'{indent}<div class="rendering-error">(Erreur de rendu)</div>'
             )
+
             return element_html
+
+    def _render_video_component(
+        self, element: Dict[str, Any], indent_level: int = 0
+    ) -> List[str]:
+        """
+        Rend un composant vidéo en HTML.
+
+        Args:
+            element: Élément de composant vidéo
+            indent_level: Niveau d'indentation
+
+        Returns:
+            Liste de lignes HTML
+        """
+        indent = "  " * indent_level
+
+        # Obtenir l'ID de la vidéo à partir des attributs
+        video_id = "1069341210"  # Valeur par défaut
+
+        if "attributes" in element and isinstance(element["attributes"], dict):
+            # Récupérer depuis les attributs du composant
+            video_id = element["attributes"].get("video_id", video_id)
+        elif hasattr(element, "get"):
+            # Récupération directe si l'élément supporte get()
+            video_id = element.get("video_id", video_id)
+
+        print(f"DEBUG - Rendu de composant vidéo avec ID: {video_id}")
+
+        # Générer le HTML pour la vidéo
+        return [
+            f'{indent}<section class="video-component">',
+            f'{indent}  <div class="video-container">',
+            f'{indent}    <iframe src="https://player.vimeo.com/video/{video_id}" width="640" height="360" frameborder="0" ',
+            f'{indent}      allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>',
+            f"{indent}  </div>",
+            f'{indent}  <script src="https://player.vimeo.com/api/player.js"></script>',
+            f"{indent}</section>",
+        ]
+
+    def _render_paragraph_video(self, text: str, indent_level: int = 0) -> List[str]:
+        """
+        Rend un paragraphe contenant un marqueur de vidéo en HTML.
+
+        Args:
+            text: Texte du paragraphe contenant le marqueur de vidéo
+            indent_level: Niveau d'indentation
+
+        Returns:
+            Liste de lignes HTML
+        """
+        indent = " " * indent_level
+
+        # Valeur par défaut pour l'ID de vidéo
+        video_id = "1069341210"
+
+        # Rechercher l'ID de vidéo avec des quotes simples
+        if "video_id='" in text:
+            start_idx = text.find("video_id='") + 10
+            end_idx = text.find("'", start_idx)
+            if end_idx > start_idx:
+                video_id = text[start_idx:end_idx]
+                print(f"DEBUG - ID vidéo trouvé (quotes simples): '{video_id}'")
+
+        # Rechercher l'ID de vidéo avec des quotes doubles
+        elif 'video_id="' in text:
+            start_idx = text.find('video_id="') + 10
+            end_idx = text.find('"', start_idx)
+            if end_idx > start_idx:
+                video_id = text[start_idx:end_idx]
+                print(f"DEBUG - ID vidéo trouvé (quotes doubles): '{video_id}'")
+
+        print(f"DEBUG - Génération de l'iframe pour la vidéo avec ID: {video_id}")
+
+        # Générer le HTML pour la vidéo Vimeo
+        return [
+            f'{indent}<div class="video-container">',
+            f'{indent}  <iframe src="https://player.vimeo.com/video/{video_id}"',
+            f'{indent}          style="width:100%;height:400px;"',
+            f'{indent}          frameborder="0"',
+            f'{indent}          allow="autoplay; fullscreen; picture-in-picture"',
+            f"{indent}          allowfullscreen",
+            f'{indent}          title="Vimeo Video Player">',
+            f"{indent}  </iframe>",
+            f"{indent}</div>",
+            f'{indent}<script src="https://player.vimeo.com/api/player.js"></script>',
+        ]
