@@ -95,6 +95,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Génère des fichiers HTML séparés pour chaque saut de page (uniquement pour le format HTML)",
     )
+    # Option pour le filtrage des commentaires
+    advanced_group.add_argument(
+        "--no-filter-comments",
+        action="store_true",
+        help="Désactive le filtrage des commentaires délimités par ### dans le document",
+    )
 
     parser.add_argument(
         "--verbose", action="store_true", help="Affiche des messages de debug détaillés"

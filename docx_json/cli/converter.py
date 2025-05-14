@@ -22,6 +22,7 @@ from docx_json.core.compatibility import (
     get_document_json,
     validate_docx,
 )
+from docx_json.core.processor import DocumentProcessor
 from docx_json.exceptions import ConversionError, DocxValidationError
 
 
@@ -111,6 +112,7 @@ def convert_file(
     quiet: bool = False,
     multipage: bool = False,
     verbose: bool = False,
+    filter_comments: bool = True,
 ) -> bool:
     """
     Convertit un fichier DOCX dans les formats demandés.
@@ -130,6 +132,7 @@ def convert_file(
         quiet: Mode silencieux
         multipage: Si True, génère plusieurs fichiers HTML aux sauts de page
         verbose: Si True, affiche des messages de détail
+        filter_comments: Si True, filtre les commentaires délimités par ###
 
     Returns:
         bool: True si la conversion a réussi
@@ -171,6 +174,9 @@ def convert_file(
         json_data: Dict[str, Any] = get_document_json(
             docx_path, output_dir, save_images
         )
+
+        # Appliquer les transformations au document JSON (filtrage des commentaires)
+        json_data = DocumentProcessor.process_document(json_data, filter_comments)
 
         # Générer et sauvegarder le JSON si demandé
         if formats[0]:  # JSON

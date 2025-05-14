@@ -9,6 +9,8 @@ Module pour le traitement des instructions et des éléments du document
 import logging
 from typing import Any, Dict, List, cast
 
+from docx_json.utils.comment_filter import filter_comments_from_json
+
 logger = logging.getLogger(__name__)
 
 from docx_json.models import (
@@ -160,6 +162,29 @@ class DocumentProcessor:
                 print(f"Composant trouvé: {component_type} avec {count} éléments")
 
         return result
+
+    @staticmethod
+    def process_document(
+        json_data: Dict[str, Any], filter_comments: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Applique différentes transformations au document JSON.
+
+        Args:
+            json_data: Les données JSON du document
+            filter_comments: Si True, filtre les commentaires délimités par ###
+
+        Returns:
+            Dict: Les données JSON transformées
+        """
+        processed_json = json_data
+
+        # Filtrer les commentaires si demandé
+        if filter_comments:
+            logging.info("Filtrage des commentaires (délimités par ###)...")
+            processed_json = filter_comments_from_json(processed_json)
+
+        return processed_json
 
 
 def generate_markdown(json_data: Dict[str, Any], output_path: str) -> None:

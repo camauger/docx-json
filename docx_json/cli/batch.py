@@ -57,6 +57,7 @@ def process_batch(
     quiet: bool = False,
     multipage: bool = False,
     verbose: bool = False,
+    filter_comments: bool = True,
 ) -> Tuple[int, int]:
     """
     Traite tous les fichiers DOCX trouvés dans un dossier.
@@ -77,6 +78,7 @@ def process_batch(
         quiet: Mode silencieux
         multipage: Si True, génère plusieurs fichiers HTML aux sauts de page
         verbose: Mode détaillé
+        filter_comments: Si True, filtre les commentaires délimités par ###
 
     Returns:
         Tuple[int, int]: Nombre de fichiers traités avec succès et nombre total
@@ -121,6 +123,7 @@ def process_batch(
                 quiet=True,  # Mode silencieux pour les fichiers individuels
                 multipage=multipage,
                 verbose=verbose,
+                filter_comments=filter_comments,
             ):
                 success_count += 1
             progress_bar.update(1)

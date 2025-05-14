@@ -21,3 +21,9 @@ if __name__ == "__main__":
 
 # # Spécifier le chemin de sortie du CSS
 # python run_docx_converter.py document.docx --json --generate-css --css-output mon_style.css
+
+#    # Comportement normal (filtrage actif)
+#    python run_docx_converter.py document.docx --json
+
+#    # Préserver les commentaires
+#    python run_docx_converter.py document.docx --json --no-filter-comments

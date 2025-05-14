@@ -44,6 +44,11 @@ def main() -> int:
     css_output = args.css_output if hasattr(args, "css_output") else None
     css_styles = args.css_styles if hasattr(args, "css_styles") else None
 
+    # Option pour le filtrage des commentaires (activé par défaut)
+    filter_comments = (
+        not args.no_filter_comments if hasattr(args, "no_filter_comments") else True
+    )
+
     # Vérifier que le chemin d'entrée existe
     if not os.path.exists(input_path):
         logging.error(f"Le chemin '{input_path}' n'existe pas.")
@@ -69,6 +74,7 @@ def main() -> int:
             generate_css=generate_css,
             css_styles=css_styles,
             verbose=args.verbose,
+            filter_comments=filter_comments,
         )
 
         # Si aucun fichier trouvé, ce n'est pas forcément une erreur
@@ -107,6 +113,7 @@ def main() -> int:
             generate_css=generate_css,
             css_styles=css_styles,
             verbose=args.verbose,
+            filter_comments=filter_comments,
         )
 
         return 0 if success else 1

@@ -22,6 +22,11 @@ def create_sample_document():
     p = doc.add_paragraph(":::class hero")
     p = doc.add_paragraph("Titre principal")
 
+    # Exemple de commentaire qui sera filtré
+    p = doc.add_paragraph(
+        "### Ce commentaire ne sera pas visible dans le résultat final ###"
+    )
+
     # Contenu avec ID spécifique
     p = doc.add_paragraph(":::id unique-section")
     p = doc.add_paragraph("Contenu spécifique")
