@@ -34,6 +34,7 @@ from docx_json.models import (
     Table,
     TextRun,
 )
+from docx_json.models.instruction import InstructionType, extract_title_value
 
 
 class DocxParser:
@@ -58,6 +59,10 @@ class DocxParser:
         self._document = None
         self._images = {}
         self._rels_dict = {}
+        # Initialiser les métadonnées du document
+        self.metadata = {
+            "title": os.path.basename(docx_path)
+        }  # Par défaut, le nom du fichier
         self.NAMESPACES = {
             "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
             "wp": "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing",
@@ -415,21 +420,59 @@ class DocxParser:
 
         return table_element
 
+    def _process_instruction(self, instruction_text: str) -> Optional[DocumentElement]:
+        """
+        Traite une instruction et retourne l'élément correspondant.
+
+        Args:
+            instruction_text: Texte de l'instruction (sans les ':::')
+
+        Returns:
+            L'élément correspondant ou None si l'instruction doit être ignorée
+        """
+        instruction_type = InstructionType.from_text(instruction_text)
+
+        # Traiter l'instruction de titre
+        if instruction_type == InstructionType.TITLE:
+            title_value = extract_title_value(instruction_text)
+            if title_value:
+                # Stocker la valeur du titre dans les métadonnées
+                self.metadata["title"] = title_value
+                logging.info(f"Titre du document défini: {title_value}")
+                return None  # Pas besoin de retourner d'élément pour cette instruction
+
+        # Instruction inconnue ou non implémentée
+        return Instruction(content=instruction_text)
+
     def parse(self) -> List[DocumentElement]:
         """
-        Parse a Word document and return a list of document elements.
+        Parse un document Word et retourne une liste d'éléments de document.
         """
         if not self._document:
             raise ValueError("No document loaded")
 
+        logging.info(f"Chargement du document: {self._docx_path}")
+        logging.info("Extraction du contenu...")
+
         elements: List[DocumentElement] = []
         for paragraph in self._document.paragraphs:
+            # Vérifier si c'est une instruction (texte commençant par ":::")
+            text = paragraph.text.strip()
+            if text.startswith(":::"):
+                instruction_text = text[3:].strip()
+                instruction_element = self._process_instruction(instruction_text)
+                if instruction_element:
+                    elements.append(instruction_element)
+                continue
+
+            # Sinon, traiter normalement
             para_element: DocumentElement = self.parse_paragraph(paragraph)
             if para_element is not None and not isinstance(para_element, Instruction):
                 elements.append(para_element)
 
-        # Group consecutive list elements
+        # Regrouper les éléments de liste consécutifs
         elements = self._group_consecutive_lists(elements)
+
         return elements
 
     def get_images(self) -> Dict[str, str]:
