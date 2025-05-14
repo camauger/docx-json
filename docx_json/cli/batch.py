@@ -46,14 +46,17 @@ def process_batch(
     output_dir: Optional[str] = None,
     prefix: Optional[str] = None,
     suffix: Optional[str] = None,
-    formats: Tuple[bool, bool, bool] = (True, False, False),
+    formats: Tuple[bool, bool, bool] = (True, True, False),
     save_images: bool = True,
     css_path: Optional[str] = None,
+    generate_css: bool = False,
+    css_styles: Optional[str] = None,
     skip_existing: bool = False,
     force: bool = False,
     recursive: bool = False,
     quiet: bool = False,
     multipage: bool = False,
+    verbose: bool = False,
 ) -> Tuple[int, int]:
     """
     Traite tous les fichiers DOCX trouvés dans un dossier.
@@ -66,11 +69,14 @@ def process_batch(
         formats: Formats à générer (json, html, markdown)
         save_images: Si True, sauvegarde les images extraites
         css_path: Chemin vers un fichier CSS personnalisé
+        generate_css: Si True, génère un fichier CSS personnalisé
+        css_styles: Styles CSS personnalisés
         skip_existing: Ignore les fichiers déjà convertis
         force: Force la reconversion même si les fichiers existent
         recursive: Si True, parcourt aussi les sous-dossiers
         quiet: Mode silencieux
         multipage: Si True, génère plusieurs fichiers HTML aux sauts de page
+        verbose: Mode détaillé
 
     Returns:
         Tuple[int, int]: Nombre de fichiers traités avec succès et nombre total
@@ -108,10 +114,13 @@ def process_batch(
                 formats=formats,
                 save_images=save_images,
                 css_path=css_path,
+                generate_css=generate_css,
+                css_styles=css_styles,
                 skip_existing=skip_existing,
                 force=force,
                 quiet=True,  # Mode silencieux pour les fichiers individuels
                 multipage=multipage,
+                verbose=verbose,
             ):
                 success_count += 1
             progress_bar.update(1)

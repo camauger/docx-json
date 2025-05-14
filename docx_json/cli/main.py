@@ -38,6 +38,12 @@ def main() -> int:
     save_images: bool = not args.no_save_images
     formats: Tuple[bool, bool, bool] = get_conversion_formats(args)
 
+    # Ajouter les variables pour CSS
+    # Note: css_output remplace l'ancien paramètre args.css pour la génération de CSS
+    generate_css = args.generate_css if hasattr(args, "generate_css") else False
+    css_output = args.css_output if hasattr(args, "css_output") else None
+    css_styles = args.css_styles if hasattr(args, "css_styles") else None
+
     # Vérifier que le chemin d'entrée existe
     if not os.path.exists(input_path):
         logging.error(f"Le chemin '{input_path}' n'existe pas.")
@@ -53,12 +59,16 @@ def main() -> int:
             suffix=args.output_suffix,
             formats=formats,
             save_images=save_images,
-            css_path=args.css,
+            css_path=css_output,
             skip_existing=args.skip_existing,
             force=args.force,
             recursive=args.recursive,
             quiet=args.quiet,
             multipage=args.multipage,
+            # Options CSS
+            generate_css=generate_css,
+            css_styles=css_styles,
+            verbose=args.verbose,
         )
 
         # Si aucun fichier trouvé, ce n'est pas forcément une erreur
@@ -88,11 +98,15 @@ def main() -> int:
             suffix=args.output_suffix,
             formats=formats,
             save_images=save_images,
-            css_path=args.css,
+            css_path=css_output,
             skip_existing=args.skip_existing,
             force=args.force,
             quiet=args.quiet,
             multipage=args.multipage,
+            # Options CSS
+            generate_css=generate_css,
+            css_styles=css_styles,
+            verbose=args.verbose,
         )
 
         return 0 if success else 1

@@ -6,13 +6,15 @@ Module de conversion d'un fichier DOCX individuel
 ------------------------------------------------
 """
 
+import argparse
 import json
 import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
+from docx_json.cli.css_command import handle_css_generation
 from docx_json.core.compatibility import (
     generate_html,
     generate_markdown,
@@ -102,10 +104,13 @@ def convert_file(
     formats: Tuple[bool, bool, bool] = (True, False, False),
     save_images: bool = True,
     css_path: Optional[str] = None,
+    css_styles: Optional[str] = None,
+    generate_css: bool = False,
     skip_existing: bool = False,
     force: bool = False,
     quiet: bool = False,
     multipage: bool = False,
+    verbose: bool = False,
 ) -> bool:
     """
     Convertit un fichier DOCX dans les formats demandés.
@@ -118,10 +123,13 @@ def convert_file(
         formats: Formats à générer (json, html, markdown)
         save_images: Si True, sauvegarde les images extraites
         css_path: Chemin vers un fichier CSS personnalisé
+        css_styles: Chemin vers un fichier JSON avec styles CSS personnalisés
+        generate_css: Si True, génère un fichier CSS
         skip_existing: Ignore les fichiers déjà convertis
         force: Force la reconversion même si les fichiers existent
         quiet: Mode silencieux
         multipage: Si True, génère plusieurs fichiers HTML aux sauts de page
+        verbose: Si True, affiche des messages de détail
 
     Returns:
         bool: True si la conversion a réussi
@@ -219,6 +227,17 @@ def convert_file(
             if not quiet:
                 print(f"Fichier Markdown créé: '{output_paths['markdown']}'")
             logging.info(f"Fichier Markdown créé: '{output_paths['markdown']}'")
+
+        # Après avoir généré le JSON, vérifier si on doit générer le CSS
+        if generate_css and output_paths.get("json"):
+            # Créer un namespace pour les arguments de génération CSS
+            css_args = argparse.Namespace()
+            css_args.generate_css = generate_css
+            css_args.css_output = css_path
+            css_args.css_styles = css_styles
+            css_args.verbose = verbose
+
+            handle_css_generation(css_args, output_paths["json"])
 
         # Afficher le temps de traitement
         elapsed_time = time.time() - start_time

@@ -9,6 +9,8 @@ Gestion des arguments de la ligne de commande
 import argparse
 from typing import Tuple
 
+from docx_json.cli.css_command import add_css_arguments
+
 
 def parse_args() -> argparse.Namespace:
     """
@@ -97,6 +99,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--verbose", action="store_true", help="Affiche des messages de debug détaillés"
     )
+
+    # Ajouter les arguments de génération CSS
+    add_css_arguments(parser)
 
     args: argparse.Namespace = parser.parse_args()
 
