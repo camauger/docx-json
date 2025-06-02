@@ -41,127 +41,142 @@ class DocumentProcessor:
         Returns:
             Liste d'éléments avec les composants traités
         """
-        result = []
-        pending_markers = {}  # Stocke les marqueurs par type
+        # Dictionnaire pour stocker les composants en cours de construction
+        components_by_type = {}
+
+        # Liste pour les éléments processés
+        processed_elements = []
+
+        # Compteurs de composants
         component_counts = {
             "Accordéon": 0,
             "Onglets": 0,
             "Carrousel": 0,
             "Audio": 0,
             "Vidéo": 0,
+            "Consignes": 0,
         }
 
-        for element in elements:
-            # Si c'est un marqueur de début de composant
+        # Première passe - Identifier les paragraphes qui sont des marqueurs de composant
+        # mais qui n'ont pas été détectés comme tels (ex: paragraphes contenant [Consignes])
+        i = 0
+        while i < len(elements):
+            element = elements[i]
+
+            # Vérifier si c'est un paragraphe
+            if element.type == "paragraph" and isinstance(element, Paragraph):
+                full_text = "".join([run.text for run in element.runs]).strip()
+
+                # Vérifier si c'est un marqueur de début de composant
+                if full_text in [
+                    "[Consignes]",
+                    "[Audio]",
+                    "[Vidéo]",
+                    "[Accordéon]",
+                    "[Carrousel]",
+                    "[Onglets]",
+                    "[Défilement]",
+                ]:
+                    # Remplacer le paragraphe par un marqueur de composant
+                    component_type = full_text[1:-1]  # Enlever les []
+                    logging.debug(
+                        f"Paragraphe converti en marqueur de début de composant: {component_type}"
+                    )
+                    elements[i] = ComponentMarker(component_type=component_type)
+
+                # Vérifier si c'est un marqueur de fin de composant
+                elif full_text.startswith("[Fin ") and full_text.endswith("]"):
+                    component_type = full_text[5:-1]  # Enlever [Fin et ]
+                    logging.debug(
+                        f"Paragraphe converti en marqueur de fin de composant: {component_type}"
+                    )
+                    elements[i] = ComponentEnd(component_type=component_type)
+
+            i += 1
+
+        # Deuxième passe - Traiter les composants
+        i = 0
+        while i < len(elements):
+            element = elements[i]
+
+            # Cas 1: Élément de type component_marker (début de composant)
             if element.type == "component_marker":
                 marker = cast(ComponentMarker, element)
-                component_type = marker.component_type
+                component_type = (
+                    marker.component_type
+                )  # Maintenant c'est le type de base
 
-                # Stocker le marqueur pour traitement ultérieur
-                if component_type not in pending_markers:
-                    pending_markers[component_type] = []
-                pending_markers[component_type].append((len(result), marker))
+                # Chercher le marqueur de fin correspondant
+                j = i + 1
+                end_index = -1
 
-            # Si c'est un marqueur de fin de composant
-            elif element.type == "component_end":
-                end_marker = cast(ComponentEnd, element)
-                component_type = end_marker.component_type
+                while j < len(elements):
+                    if (
+                        elements[j].type == "component_end"
+                        and cast(ComponentEnd, elements[j]).component_type
+                        == component_type
+                    ):
+                        end_index = j
+                        break
+                    j += 1
 
-                # Chercher le marqueur de début correspondant
-                if (
-                    component_type in pending_markers
-                    and pending_markers[component_type]
-                ):
-                    start_index, start_marker = pending_markers[component_type].pop(0)
-
-                    # Logger pour le débogage
-                    print(
-                        f"Création d'un composant {component_type} entre les indices {start_index} et {len(result)}"
-                    )
-
-                    # Créer un composant avec tout le contenu entre les marqueurs
+                if end_index > i:
+                    # Créer un nouveau composant
                     component = Component(component_type)
                     component_counts[component_type] += 1
 
-                    # Pour les vidéos, récupérer les attributs personnalisés
-                    if component_type == "Vidéo" and hasattr(
-                        start_marker, "attributes"
+                    # Transférer les attributs du marqueur
+                    if hasattr(marker, "attributes") and isinstance(
+                        marker.attributes, dict
                     ):
-                        # Transférer les attributs du ComponentMarker vers le Component
-                        for key, value in start_marker.attributes.items():
-                            # Utiliser la méthode add_attribute au lieu d'accéder directement à custom_attributes
+                        for key, value in marker.attributes.items():
                             component.add_attribute(key, value)
-                            print(f"Attribut vidéo ajouté: {key}={value}")
+                            logging.debug(
+                                f"Attribut ajouté à {component_type}: {key}={value}"
+                            )
 
-                    # Ajouter le contenu entre les marqueurs au composant
-                    component.content = result[start_index : len(result)]
-
-                    # Remplacer tous les éléments entre les marqueurs par le composant
-                    result = result[:start_index] + [component]
-                else:
-                    # Si pas de marqueur de début, ajouter un avertissement
-                    logging.warning(
-                        f"Marqueur de fin '{component_type}' sans marqueur de début correspondant"
-                    )
-                    result.append(element)
-            else:
-                # Vérifier si c'est un paragraphe contenant un marqueur [Vidéo] directement
-                if element.type == "paragraph" and isinstance(element, Paragraph):
-                    # Extraire le texte complet du paragraphe
-                    full_text = ""
-                    for run in element.runs:
-                        full_text += run.text
-
-                    # Vérifier si c'est un marqueur de vidéo
-                    if full_text.startswith("[Vidéo") and "]" in full_text:
-                        # Créer un composant vidéo
-                        print(
-                            f"Création d'un composant Vidéo à partir du marqueur: {full_text}"
+                    # Cas spécifique pour les Consignes
+                    if component_type == "Consignes":
+                        component.html_class = "consignes"
+                        logging.info(
+                            f"Classe 'consignes' ajoutée au composant {component_type}"
                         )
-                        component = Component("Vidéo")
 
-                        # Extraire l'ID de vidéo
-                        video_id = None
+                    # Ajouter le contenu du composant
+                    component.content = elements[i + 1 : end_index]
 
-                        # Rechercher video_id avec quotes simples
-                        if "video_id='" in full_text:
-                            start_idx = full_text.find("video_id='") + 10
-                            end_idx = full_text.find("'", start_idx)
-                            if end_idx > start_idx:
-                                video_id = full_text[start_idx:end_idx]
+                    # Ajouter le composant à la liste des éléments traités
+                    processed_elements.append(component)
 
-                        # Rechercher video_id avec quotes doubles
-                        elif 'video_id="' in full_text:
-                            start_idx = full_text.find('video_id="') + 10
-                            end_idx = full_text.find('"', start_idx)
-                            if end_idx > start_idx:
-                                video_id = full_text[start_idx:end_idx]
+                    # Passer directement après le marqueur de fin
+                    i = end_index + 1
+                else:
+                    # Si pas de marqueur de fin, ignorer ce marqueur
+                    logging.warning(
+                        f"Pas de marqueur de fin trouvé pour '{component_type}'"
+                    )
+                    i += 1
 
-                        # Ajouter l'ID comme attribut
-                        if video_id:
-                            component.add_attribute("video_id", video_id)
-
-                        # Ajouter au résultat
-                        result.append(component)
-                        continue
-
-                # Si ce n'est pas un marqueur de vidéo, ajouter normalement
-                result.append(element)
-
-        # Si des marqueurs de début restent sans fin correspondante, les ajouter au résultat
-        for component_type, markers in pending_markers.items():
-            for _, marker in markers:
+            # Cas 2: Élément de type component_end (fin de composant sans début)
+            elif element.type == "component_end":
                 logging.warning(
-                    f"Marqueur de début '{component_type}' sans marqueur de fin correspondant"
+                    f"Marqueur de fin '{cast(ComponentEnd, element).component_type}' sans début correspondant"
                 )
-                result.append(marker)
+                i += 1
 
-        # Afficher les statistiques des composants
+            # Cas 3: Autre élément (ajouter tel quel)
+            else:
+                processed_elements.append(element)
+                i += 1
+
+        # Afficher les statistiques des composants traités
         for component_type, count in component_counts.items():
             if count > 0:
-                print(f"Composant trouvé: {component_type} avec {count} éléments")
+                logging.info(
+                    f"Composant trouvé: {component_type} avec {count} éléments"
+                )
 
-        return result
+        return processed_elements
 
     @staticmethod
     def process_document(

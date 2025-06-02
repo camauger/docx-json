@@ -3,6 +3,9 @@ Package pour les renderers HTML du convertisseur DOCX-JSON.
 Ce package contient les classes responsables du rendu des différents éléments HTML.
 """
 
+import logging
+from typing import Any, Dict, List, Optional
+
 from .base import ElementRenderer
 from .block import BlockRenderer
 from .component import ComponentRenderer

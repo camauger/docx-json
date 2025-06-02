@@ -44,6 +44,25 @@ def main() -> int:
     css_output = args.css_output if hasattr(args, "css_output") else None
     css_styles = args.css_styles if hasattr(args, "css_styles") else None
 
+    # Utiliser args.css pour le fichier CSS à appliquer au HTML
+    css_path = args.css if hasattr(args, "css") else None
+
+    # Si generate_css est activé sans spécifier css_path, utiliser le CSS généré
+    if generate_css and not css_path:
+        # Déterminer le chemin du CSS généré (même logique que dans css_command.py)
+        if css_output:
+            # Utiliser le chemin spécifié par --css-output
+            css_path = css_output
+        else:
+            # Générer un nom basé sur le fichier d'entrée
+            input_base_name = os.path.splitext(os.path.basename(input_path))[0]
+            input_dir = os.path.dirname(input_path) if not output_dir else output_dir
+            css_path = os.path.join(input_dir, f"{input_base_name}.css")
+
+        logging.info(f"Le CSS généré '{css_path}' sera utilisé pour le HTML")
+        if not args.quiet:
+            print(f"Le CSS généré '{css_path}' sera utilisé pour le HTML")
+
     # Option pour le filtrage des commentaires (activé par défaut)
     filter_comments = (
         not args.no_filter_comments if hasattr(args, "no_filter_comments") else True
@@ -104,7 +123,7 @@ def main() -> int:
             suffix=args.output_suffix,
             formats=formats,
             save_images=save_images,
-            css_path=css_output,
+            css_path=css_path,
             skip_existing=args.skip_existing,
             force=args.force,
             quiet=args.quiet,

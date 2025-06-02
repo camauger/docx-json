@@ -2,17 +2,16 @@
 # -*- coding: utf-8 -*-
 
 """
-Module de conversion d'un fichier DOCX individuel
-------------------------------------------------
+Module pour la conversion de fichiers DOCX.
 """
 
 import argparse
 import json
 import logging
 import os
+import sys
 import time
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Set, Tuple
 
 from docx_json.cli.css_command import handle_css_generation
 from docx_json.core.compatibility import (
@@ -22,79 +21,12 @@ from docx_json.core.compatibility import (
     get_document_json,
     validate_docx,
 )
+from docx_json.core.converter_functions import convert_docx_to_json
+from docx_json.core.html_generator import HTMLGenerator
 from docx_json.core.processor import DocumentProcessor
 from docx_json.exceptions import ConversionError, DocxValidationError
-
-
-def get_output_paths(
-    docx_path: str,
-    output_dir: Optional[str] = None,
-    prefix: Optional[str] = None,
-    suffix: Optional[str] = None,
-    formats: Tuple[bool, bool, bool] = (True, False, False),
-) -> Dict[str, str]:
-    """
-    Génère les chemins des fichiers de sortie.
-
-    Args:
-        docx_path: Chemin vers le fichier DOCX
-        output_dir: Dossier de destination (optionnel)
-        prefix: Préfixe pour les noms de fichiers (optionnel)
-        suffix: Suffixe pour les noms de fichiers (optionnel)
-        formats: Tuple de booléens (json, html, markdown)
-
-    Returns:
-        Dict[str, str]: Dictionnaire avec les chemins de sortie
-    """
-    # Utiliser Path pour une meilleure manipulation des chemins
-    input_path = Path(docx_path)
-    base_name: str = input_path.stem
-
-    # Appliquer préfixe et suffixe si spécifiés
-    if prefix:
-        base_name = f"{prefix}{base_name}"
-    if suffix:
-        base_name = f"{base_name}{suffix}"
-
-    # Déterminer le dossier de sortie
-    out_dir: Path = Path(output_dir) if output_dir else input_path.parent
-
-    # Créer le dossier de sortie s'il n'existe pas
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    # Générer les chemins
-    paths: Dict[str, str] = {}
-    if formats[0]:  # JSON
-        paths["json"] = str(out_dir / f"{base_name}.json")
-    if formats[1]:  # HTML
-        paths["html"] = str(out_dir / f"{base_name}.html")
-    if formats[2]:  # Markdown
-        paths["markdown"] = str(out_dir / f"{base_name}.md")
-
-    return paths
-
-
-def needs_conversion(input_path: str, output_path: str) -> bool:
-    """
-    Vérifie si le fichier de sortie doit être régénéré.
-
-    Args:
-        input_path: Chemin du fichier d'entrée
-        output_path: Chemin du fichier de sortie
-
-    Returns:
-        bool: True si le fichier de sortie n'existe pas ou est plus ancien que l'entrée
-    """
-    # Si le fichier de sortie n'existe pas, conversion nécessaire
-    if not os.path.exists(output_path):
-        return True
-
-    # Comparer les dates de modification
-    input_mtime: float = os.path.getmtime(input_path)
-    output_mtime: float = os.path.getmtime(output_path)
-
-    # Si le fichier d'entrée est plus récent, conversion nécessaire
-    return input_mtime > output_mtime
+from docx_json.utils.comment_filter import filter_comments_from_json
+from docx_json.utils.consignes_handler import process_consignes_in_html
 
 
 def convert_file(
@@ -172,7 +104,7 @@ def convert_file(
 
         # Convertir le document
         json_data: Dict[str, Any] = get_document_json(
-            docx_path, output_dir, save_images
+            docx_path, output_dir or ".", save_images
         )
 
         # Appliquer les transformations au document JSON (filtrage des commentaires)
@@ -204,7 +136,10 @@ def convert_file(
 
                 # Générer plusieurs fichiers HTML
                 html_files = generate_multi_page_html(
-                    json_data, html_output_dir, html_base_name, css_path
+                    json_data,
+                    output_dir=html_output_dir,
+                    base_filename=html_base_name,
+                    css_path=css_path,
                 )
 
                 if not quiet:
@@ -216,11 +151,36 @@ def convert_file(
                 logging.info(
                     f"{len(html_files)} fichiers HTML créés dans: '{html_output_dir}'"
                 )
+
+                # Traiter les composants Consignes dans chaque fichier HTML
+                for html_file in html_files:
+                    try:
+                        with open(html_file, "r", encoding="utf-8") as f:
+                            html_content = f.read()
+
+                        # Traiter les composants Consignes
+                        html_with_consignes = process_consignes_in_html(html_content)
+
+                        # Si des modifications ont été apportées, sauvegarder le fichier
+                        if html_with_consignes != html_content:
+                            with open(html_file, "w", encoding="utf-8") as f:
+                                f.write(html_with_consignes)
+                            logging.info(
+                                f"Composants Consignes traités dans '{html_file}'"
+                            )
+                    except Exception as e:
+                        logging.warning(
+                            f"Erreur lors du traitement des composants Consignes dans '{html_file}': {str(e)}"
+                        )
             else:
                 # Générer un seul fichier HTML
                 html_content = generate_html(json_data, css_path=css_path)
+
+                # Traiter les composants Consignes
+                html_with_consignes = process_consignes_in_html(html_content)
+
                 with open(output_paths["html"], "w", encoding="utf-8") as f:
-                    f.write(html_content)
+                    f.write(html_with_consignes)
                 if not quiet:
                     print(f"Fichier HTML créé: '{output_paths['html']}'")
                 logging.info(f"Fichier HTML créé: '{output_paths['html']}'")
@@ -270,6 +230,263 @@ def convert_file(
         if not quiet:
             print(f"Erreur inattendue: {str(e)}")
         return False
+
+
+def validate_docx(docx_path: str) -> bool:
+    """
+    Valide si le fichier est un DOCX valide.
+
+    Args:
+        docx_path: Chemin du fichier à valider
+
+    Returns:
+        bool: True si le fichier est valide
+    """
+    if not os.path.exists(docx_path):
+        return False
+
+    if not os.path.isfile(docx_path):
+        return False
+
+    if not docx_path.lower().endswith(".docx"):
+        return False
+
+    # Vérifier l'en-tête ZIP du fichier DOCX
+    try:
+        with open(docx_path, "rb") as f:
+            # Les fichiers DOCX sont des archives ZIP - vérifier la signature ZIP
+            # Les premiers octets d'un fichier ZIP sont 'PK' + des octets de version
+            signature = f.read(4)
+            return signature == b"PK\x03\x04"
+    except:
+        return False
+
+
+def needs_conversion(source_path: str, target_path: str) -> bool:
+    """
+    Vérifie si un fichier source doit être converti en fichier cible.
+
+    Args:
+        source_path: Chemin du fichier source
+        target_path: Chemin du fichier cible
+
+    Returns:
+        bool: True si la conversion est nécessaire
+    """
+    # Si le fichier cible n'existe pas, conversion nécessaire
+    if not os.path.exists(target_path):
+        return True
+
+    # Si le fichier source est plus récent que le fichier cible, conversion nécessaire
+    source_mtime = os.path.getmtime(source_path)
+    target_mtime = os.path.getmtime(target_path)
+    return source_mtime > target_mtime
+
+
+def get_output_paths(
+    docx_path: str,
+    output_dir: Optional[str] = None,
+    prefix: Optional[str] = None,
+    suffix: Optional[str] = None,
+    formats: Tuple[bool, bool, bool] = (True, False, False),
+) -> Dict[str, str]:
+    """
+    Génère les chemins de sortie pour les différents formats.
+
+    Args:
+        docx_path: Chemin du fichier DOCX
+        output_dir: Dossier de destination
+        prefix: Préfixe pour les noms de fichiers
+        suffix: Suffixe pour les noms de fichiers
+        formats: Formats à générer (json, html, markdown)
+
+    Returns:
+        dict: Chemins de sortie pour chaque format
+    """
+    # Déterminer le répertoire de sortie
+    if output_dir is None:
+        output_dir = os.path.dirname(docx_path) or "."
+
+    # Créer le répertoire de sortie s'il n'existe pas
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Nom du fichier sans extension
+    base_name = os.path.splitext(os.path.basename(docx_path))[0]
+
+    # Ajouter préfixe et suffixe si nécessaire
+    if prefix:
+        base_name = f"{prefix}{base_name}"
+    if suffix:
+        base_name = f"{base_name}{suffix}"
+
+    # Chemins de sortie pour les différents formats
+    output_paths = {}
+
+    # Ajouter les chemins de sortie selon les formats demandés
+    if formats[0]:  # JSON
+        output_paths["json"] = os.path.join(output_dir, f"{base_name}.json")
+    if formats[1]:  # HTML
+        output_paths["html"] = os.path.join(output_dir, f"{base_name}.html")
+    if formats[2]:  # Markdown
+        output_paths["markdown"] = os.path.join(output_dir, f"{base_name}.md")
+
+    return output_paths
+
+
+def get_document_json(
+    docx_path: str, output_dir: str = ".", save_images_to_disk: bool = True
+) -> Dict[str, Any]:
+    """
+    Obtient un dictionnaire JSON à partir d'un fichier DOCX.
+
+    Args:
+        docx_path: Chemin du fichier DOCX
+        output_dir: Répertoire où sauvegarder les images
+        save_images_to_disk: Si True, sauvegarde les images sur disque
+
+    Returns:
+        dict: Données JSON du document
+    """
+    try:
+        from docx_json.core.docx_parser import DocxParser
+
+        # Charger le document et extraire les éléments
+        parser = DocxParser(docx_path, output_dir, save_images_to_disk)
+        elements = parser.parse()
+        images = parser.get_images()
+        metadata = parser.metadata
+
+        # Créer le JSON final
+        json_output = {
+            "meta": metadata,
+            "content": elements,
+            "images": images,
+        }
+
+        return json_output
+
+    except Exception as e:
+        raise ConversionError(f"Erreur lors de la conversion en JSON: {str(e)}")
+
+
+def generate_html(json_data: Dict[str, Any], css_path: Optional[str] = None) -> str:
+    """
+    Génère un document HTML à partir des données JSON.
+
+    Args:
+        json_data: Données JSON du document
+        css_path: Chemin vers un fichier CSS personnalisé
+
+    Returns:
+        str: Document HTML
+    """
+    try:
+        from docx_json.core.html_generator import HTMLGenerator
+
+        generator = HTMLGenerator(json_data)
+        html = generator.generate(custom_css=css_path)
+        return html
+
+    except Exception as e:
+        raise ConversionError(f"Erreur lors de la génération du HTML: {str(e)}")
+
+
+def generate_multi_page_html(
+    json_data: Dict[str, Any],
+    output_dir: str,
+    base_filename: str,
+    css_path: Optional[str] = None,
+) -> list:
+    """
+    Génère plusieurs fichiers HTML à partir des données JSON.
+
+    Args:
+        json_data: Données JSON du document
+        output_dir: Répertoire de sortie
+        base_filename: Nom de base pour les fichiers HTML
+        css_path: Chemin vers un fichier CSS personnalisé
+
+    Returns:
+        list: Liste des chemins des fichiers générés
+    """
+    try:
+        from docx_json.core.html_generator import HTMLGenerator
+
+        generator = HTMLGenerator(json_data)
+        files = generator.generate_multi_page(
+            output_dir=output_dir, base_filename=base_filename, custom_css=css_path
+        )
+        return files
+
+    except Exception as e:
+        raise ConversionError(
+            f"Erreur lors de la génération du HTML multi-pages: {str(e)}"
+        )
+
+
+def generate_markdown(json_data: Dict[str, Any]) -> str:
+    """
+    Génère du Markdown à partir des données JSON.
+
+    Args:
+        json_data: Données JSON du document
+
+    Returns:
+        str: Document Markdown
+    """
+    try:
+        from docx_json.core.markdown_generator import MarkdownGenerator
+
+        generator = MarkdownGenerator(json_data)
+        markdown = generator.generate()
+        return markdown
+
+    except Exception as e:
+        raise ConversionError(f"Erreur lors de la génération du Markdown: {str(e)}")
+
+
+def handle_css_generation(
+    args: argparse.Namespace, json_path: str
+) -> Optional[Set[str]]:
+    """
+    Gère la génération du CSS à partir du fichier JSON.
+
+    Args:
+        args: Arguments de ligne de commande
+        json_path: Chemin du fichier JSON
+
+    Returns:
+        Optional[Set[str]]: Ensemble des classes CSS générées ou None en cas d'erreur
+    """
+    try:
+        # Importer ici pour éviter les dépendances circulaires
+        from docx_json.utils.css_generator import load_custom_styles, process_json_file
+
+        # Extraire le nom de base
+        base_name = os.path.splitext(os.path.basename(json_path))[0]
+
+        # Déterminer le chemin de sortie du CSS
+        css_output_path = args.css_output
+        if not css_output_path:
+            # Réutiliser le même nom que le fichier JSON mais avec extension .css
+            css_output_path = os.path.join(
+                os.path.dirname(json_path), f"{base_name}.css"
+            )
+
+        # Charger les styles personnalisés si spécifiés
+        custom_styles = None
+        if args.css_styles:
+            custom_styles = load_custom_styles(args.css_styles)
+
+        # Générer le CSS
+        return process_json_file(
+            json_path, css_output_path, custom_styles=custom_styles
+        )
+
+    except Exception as e:
+        logging.error(f"Erreur lors de la génération du CSS: {str(e)}")
+        print(f"Erreur lors de la génération du CSS: {str(e)}")
+        return None
 
 
 # Exemples d'usage

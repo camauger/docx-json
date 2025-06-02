@@ -228,25 +228,55 @@ class DocxParser:
             component_pattern: str = r"\[([\w\s]+)(?:\s+(.+))?\]"
             match: Optional[re.Match] = re.match(component_pattern, text)
             if match:
-                component_type: str = match.group(1).strip()
+                component_type_full: str = match.group(1).strip()
                 attributes_str: str = match.group(2) or ""
 
-                # Vérifier si c'est un marqueur de début ou de fin de composant
-                if component_type in [
+                # Vérifier si c'est un marqueur de fin de composant
+                if component_type_full.startswith("Fin "):
+                    # Extraire le type de composant sans le "Fin "
+                    end_component_type = component_type_full[4:].strip()
+                    logging.debug(
+                        f"Marqueur de fin de composant détecté: {end_component_type}"
+                    )
+                    return ComponentEnd(component_type=end_component_type)
+
+                # Extraire juste le type de base sans les attributs s'il contient un espace
+                # Ex: "Vidéo video_id=..." -> "Vidéo"
+                base_component_type = (
+                    component_type_full.split()[0]
+                    if " " in component_type_full
+                    else component_type_full
+                )
+
+                # Vérifier si c'est un marqueur de début de composant connu
+                if base_component_type in [
                     "Vidéo",
                     "Audio",
                     "Accordéon",
                     "Carrousel",
                     "Onglets",
                     "Défilement",
+                    "Consignes",
                 ]:
                     logging.debug(
-                        f"Marqueur de début de composant détecté: {component_type}"
+                        f"Marqueur de début de composant détecté: {base_component_type}"
                     )
 
-                    # Extraire les attributs si présents (format: attr='value' attr2="value2")
-                    component_marker = ComponentMarker(component_type=component_type)
+                    # Créer le marqueur avec le type de base
+                    component_marker = ComponentMarker(
+                        component_type=base_component_type
+                    )
 
+                    # Si le type contient des attributs (comme "Vidéo video_id=...")
+                    if " " in component_type_full and attributes_str == "":
+                        # Extraire la partie des attributs du type complet
+                        attributes_str = component_type_full.split(" ", 1)[1]
+
+                    # Initialiser le dictionnaire d'attributs
+                    if not hasattr(component_marker, "attributes"):
+                        component_marker.attributes = {}
+
+                    # Extraire les attributs si présents (format: attr='value' attr2="value2")
                     if attributes_str:
                         # Pattern pour extraire les attributs au format key='value' ou key="value"
                         attr_pattern = r"(\w+)=(['\"])(.*?)\2"
@@ -255,18 +285,13 @@ class DocxParser:
                             attr_value: str = attr_match.group(3)
                             # Stocker l'attribut dans l'objet ComponentMarker
                             setattr(component_marker, attr_name, attr_value)
+                            # Ajouter aussi dans le dictionnaire d'attributs
+                            component_marker.attributes[attr_name] = attr_value
                             logging.debug(
                                 f"  Attribut détecté: {attr_name}={attr_value}"
                             )
 
                     return component_marker
-                elif component_type.startswith("Fin "):
-                    # Extraire le type de composant sans le "Fin "
-                    end_component_type: str = component_type[4:].strip()
-                    logging.debug(
-                        f"Marqueur de fin de composant détecté: {end_component_type}"
-                    )
-                    return ComponentEnd(component_type=end_component_type)
 
         # Vérifier si c'est une image
         if any(
@@ -440,6 +465,15 @@ class DocxParser:
                 self.metadata["title"] = title_value
                 logging.info(f"Titre du document défini: {title_value}")
                 return None  # Pas besoin de retourner d'élément pour cette instruction
+
+        # Traiter l'instruction de classe CSS
+        elif instruction_type == InstructionType.CLASS:
+            # Extraire les classes CSS (tout ce qui suit après "class ")
+            class_names = instruction_text[6:].strip()
+            logging.info(f"Instruction de classe CSS détectée: {class_names}")
+            instruction = Instruction(content=instruction_text)
+            instruction.instruction_type = InstructionType.CLASS
+            return instruction
 
         # Instruction inconnue ou non implémentée
         return Instruction(content=instruction_text)

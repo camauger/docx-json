@@ -6,7 +6,7 @@ Modèles pour les éléments spéciaux du document.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from docx_json.models.base import DocumentElement
 
@@ -102,15 +102,19 @@ class Instruction(DocumentElement):
     """Représente une instruction de formatage."""
 
     content: str
+    instruction_type: Optional[str] = None
 
-    def __init__(self, content: str):
+    def __init__(self, content: str, instruction_type: Optional[str] = None):
         super().__init__("instruction")
         self.content = content
+        self.instruction_type = instruction_type
 
     def to_dict(self) -> Dict[str, Any]:
         """Convertit l'instruction en dictionnaire pour le JSON."""
         result = super().to_dict()
         result["content"] = self.content
+        if self.instruction_type:
+            result["instruction_type"] = self.instruction_type
         return result
 
 

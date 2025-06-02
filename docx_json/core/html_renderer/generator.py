@@ -98,12 +98,15 @@ class HTMLGenerator:
             "  <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css'>",
         ]
 
-        # Ajouter le CSS
+        # Toujours inclure Bootstrap pour la mise en page de base
+        html.append(f"  {self.BOOTSTRAP_CSS}")
+
+        # Ajouter le CSS personnalisé si fourni
         if custom_css:
-            html.extend(["  <style>", f"    {custom_css}", "  </style>"])
-            html.append(f"  {self.BOOTSTRAP_CSS}")
-        else:
-            html.append(f"  {self.BOOTSTRAP_CSS}")
+            # Ajouter le CSS personnalisé qui pourra surcharger Bootstrap au besoin
+            html.append("  <style>")
+            html.append(f"{custom_css}")
+            html.append("  </style>")
 
         # Ajouter le CSS pour les sauts de page
         html.extend(
@@ -160,11 +163,8 @@ class HTMLGenerator:
             ]
         )
 
-        # Ajouter les scripts Bootstrap
-        if not custom_css:
-            html.append(f"  {self.BOOTSTRAP_JS}")
-        else:
-            html.append(f"  {self.BOOTSTRAP_JS}")
+        # Ajouter les scripts Bootstrap (toujours nécessaires)
+        html.append(f"  {self.BOOTSTRAP_JS}")
 
         # Ajouter le script pour le toggle de thème
         html.extend(
@@ -266,64 +266,102 @@ class HTMLGenerator:
         Returns:
             Liste de lignes HTML
         """
-        element_html = []
-        indent = "  " * indent_level
+        if not element:
+            return []
 
+        indent = " " * indent_level
+        element_type = element.get("type", "unknown")
+
+        # Si c'est un paragraphe contenant un marqueur de composant, le traiter spécialement
+        if (
+            element_type == "paragraph"
+            and "runs" in element
+            and len(element["runs"]) > 0
+        ):
+            # Vérifier si le texte du paragraphe est un marqueur de composant
+            text = "".join([run["text"] for run in element["runs"]]).strip()
+
+            # Traiter les marqueurs de composants Consignes
+            if text == "[Consignes]":
+                # Rechercher les paragraphes suivants jusqu'à [Fin Consignes]
+                if self._find_index_in_json("content", element) != -1:
+                    content_elements = self._json_data["content"]
+                    start_idx = self._find_index_in_json("content", element)
+                    consignes_content = []
+
+                    # Collecter les paragraphes entre [Consignes] et [Fin Consignes]
+                    for i in range(start_idx + 1, len(content_elements)):
+                        curr_element = content_elements[i]
+                        if (
+                            curr_element.get("type") == "paragraph"
+                            and "runs" in curr_element
+                            and "".join(
+                                [run.get("text", "") for run in curr_element["runs"]]
+                            ).strip()
+                            == "[Fin Consignes]"
+                        ):
+                            break
+                        consignes_content.append(curr_element)
+
+                    # Générer le HTML pour le composant Consignes
+                    return [
+                        f'{indent}<section class="consignes-component">',
+                        f'{indent}  <div class="card my-4 border-0 shadow-sm">',
+                        f'{indent}    <div class="card-body consignes" style="background-color: #fffde7; border-left: 4px solid #fb8c00; font-style: italic; padding: 1rem;">',
+                        *[
+                            html_line
+                            for element in consignes_content
+                            for html_line in self._generate_element_html(
+                                element, indent_level + 6
+                            )
+                            if html_line
+                        ],
+                        f"{indent}    </div>",
+                        f"{indent}  </div>",
+                        f"{indent}</section>",
+                    ]
+
+            # Ignorer les marqueurs de fin
+            elif text == "[Fin Consignes]" or text.startswith("[Fin "):
+                return []
+
+        # Continuer avec la logique normale pour les autres types d'éléments
         try:
-            element_type = element.get("type", "unknown")
-
-            # Traitement spécial pour les composants vidéo
-            if element_type == "component" and element.get("component_type") == "Vidéo":
-                # Traitement spécial pour les composants vidéo
-                return self._render_video_component(element, indent_level)
-
-            # Vérifier si c'est un paragraphe avec un marqueur de vidéo
-            if element_type == "paragraph" and "runs" in element:
-                # Extraire le texte complet du paragraphe
-                full_text = ""
-                for run in element["runs"]:
-                    full_text += run.get("text", "")
-
-                # Vérifier si c'est un marqueur de vidéo
-                if full_text.strip().startswith("[Vidéo") and "]" in full_text:
-                    print(
-                        f"DEBUG - Marqueur vidéo détecté dans le paragraphe: '{full_text}'"
-                    )
-                    # Utiliser le renderer vidéo pour traiter cet élément
-                    video_renderer = self._renderers.get("video")
-                    if video_renderer:
-                        return video_renderer.render(element, indent_level)
-                    else:
-                        # Fallback au rendu direct si le renderer n'est pas disponible
-                        return self._render_paragraph_video(full_text, indent_level)
-
-            # Utiliser les renderers pour les autres types d'éléments
-            renderer = self._renderers.get(element_type)
-            if renderer:
-                element_html = renderer.render(element, indent_level)
+            # Utiliser le renderer approprié pour le type d'élément
+            if element_type in self._renderers:
+                renderer = self._renderers[element_type]
+                return renderer.render(element, indent_level)
             else:
-                # Si pas de renderer pour ce type, ajouter un commentaire d'erreur
-                element_html.append(
-                    f"{indent}<!-- Erreur lors du rendu : {element_type} -->"
+                logging.error(
+                    f"Erreur de rendu HTML: type d'élément inconnu '{element_type}'"
                 )
-                element_html.append(
-                    f'{indent}<div class="rendering-error">(Erreur de rendu)</div>'
-                )
-
-            return element_html
-
+                return [
+                    f'{indent}<div class="rendering-error">(Type inconnu: {element_type})</div>'
+                ]
         except Exception as e:
-            # En cas d'erreur, ajouter un commentaire et une div d'erreur
-            error_message = str(e)
-            logging.error(f"Erreur de rendu HTML: {error_message}")
-            element_html.append(
-                f"{indent}<!-- Erreur lors du rendu : {error_message} -->"
-            )
-            element_html.append(
-                f'{indent}<div class="rendering-error">(Erreur de rendu)</div>'
-            )
+            logging.error(f"Erreur de rendu HTML: {str(e)}")
+            return [f'{indent}<div class="rendering-error">(Erreur de rendu)</div>']
 
-            return element_html
+    def _find_index_in_json(self, key: str, element: Dict[str, Any]) -> int:
+        """
+        Trouve l'index d'un élément dans une liste du JSON.
+
+        Args:
+            key: Clé pointant vers la liste dans le JSON (ex: "content")
+            element: Élément à rechercher
+
+        Returns:
+            Index de l'élément ou -1 si non trouvé
+        """
+        if key not in self._json_data:
+            return -1
+
+        elements = self._json_data[key]
+        for i, e in enumerate(elements):
+            if e == element:
+                return i
+
+        return -1
 
     def _render_video_component(
         self, element: Dict[str, Any], indent_level: int = 0

@@ -78,6 +78,16 @@ DEFAULT_STYLES = {
     padding: 1.5rem;
     margin-bottom: 1.5rem;
     """,
+    # Composant Consignes
+    "consignes": """
+    background-color: #fffbea;
+    border-left: 4px solid #ffc107;
+    padding: 1.25rem;
+    margin: 1.5rem 0;
+    border-radius: 0.375rem;
+    font-style: italic;
+    color: #6c5600;
+    """,
     # Marges et espacement
     "mt-large": "margin-top: 3rem;",
     "mb-large": "margin-bottom: 3rem;",

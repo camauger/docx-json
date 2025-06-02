@@ -1,6 +1,6 @@
-# 📄 DOCX to JSON/HTML Converter
+# 📄 DOCX to JSON/HTML/Markdown Converter
 
-Un package Python pour convertir des fichiers `.docx` en fichiers `.json` structurés ou `.html` sémantiques.
+Un package Python pour convertir des fichiers `.docx` en fichiers `.json` structurés, `.html` sémantiques ou `.md` Markdown.
 Il prend en charge les styles, les tableaux, les images et des **instructions intégrées** au document `.docx` pour personnaliser le rendu,
 ainsi que des **composants pédagogiques** comme les vidéos, les accordéons, etc.
 
@@ -10,9 +10,11 @@ ainsi que des **composants pédagogiques** comme les vidéos, les accordéons, e
 
 - ✅ Conversion du contenu `.docx` en JSON structuré
 - ✅ Génération d'un fichier `.html` propre, avec structure sémantique
+- ✅ Conversion vers `.md` Markdown (via pandoc)
 - ✅ Gestion des **styles** (gras, italique, souligné)
 - ✅ Support des **titres, paragraphes, listes, tableaux**
 - ✅ Extraction des **images** (fichiers séparés ou base64)
+- ✅ Conversion **récursive** de dossiers entiers
 - ✅ Support des **composants pédagogiques**:
   - Vidéos
   - Audio
@@ -42,10 +44,10 @@ pip install -e .
 
 ### Option 2: Installation simple
 
-1. Installez simplement la dépendance principale:
+1. Installez les dépendances principales:
 
 ```bash
-pip install python-docx
+pip install python-docx pandoc
 ```
 
 2. Utilisez le script inclus `run_docx_converter.py`
@@ -58,10 +60,10 @@ pip install python-docx
 
 ```bash
 # Si installé comme package
-docx-json monfichier.docx --json --html
+docx-json monfichier.docx --json --html --md
 
 # OU en utilisant le script de lancement
-python run_docx_converter.py monfichier.docx --json --html
+python run_docx_converter.py monfichier.docx --json --html --md
 ```
 
 ### Options disponibles
@@ -70,8 +72,33 @@ python run_docx_converter.py monfichier.docx --json --html
 |---------------------|--------------------------------------------------|
 | `--json`            | Génère un fichier `.json` structuré              |
 | `--html`            | Génère un fichier `.html` sémantique             |
+| `--md`              | Génère un fichier `.md` Markdown                 |
+| `--recursive`       | Convertit récursivement tous les fichiers DOCX des dossiers |
+| `--standalone`      | Génère un document Markdown autonome avec métadonnées |
 | `--no-save-images`  | Encode les images en base64 au lieu de les sauvegarder comme fichiers |
+| `--output-dir`      | Spécifie le répertoire de sortie pour les fichiers générés |
 | `--verbose`         | Affiche des messages de debug détaillés          |
+
+### Exemples d'utilisation
+
+```bash
+# Conversion simple
+docx-json document.docx --json
+
+# Conversion vers plusieurs formats
+docx-json document.docx --json --html --md
+
+# Conversion d'un dossier entier
+docx-json dossier/ --recursive --json
+
+# Conversion avec préservation de la structure
+docx-json dossier/ --recursive --output-dir output/ --json
+
+# Conversion avec gestion des images
+docx-json document.docx --no-save-images --html
+```
+
+Pour plus de détails sur les commandes et options disponibles, consultez le [Guide des Commandes](COMMANDES.md).
 
 ---
 
@@ -242,6 +269,7 @@ docx-json/
 │       └── elements.py  # Classes des éléments du document
 ├── run_docx_converter.py # Script de lancement
 ├── pyproject.toml       # Configuration du package
+├── COMMANDES.md         # Guide des commandes CLI
 └── README.md            # Documentation
 ```
 

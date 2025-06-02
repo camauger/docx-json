@@ -2,6 +2,7 @@
 Module contenant le renderer pour les composants interactifs.
 """
 
+import re
 from typing import Any, Dict, List
 
 from .base import ElementRenderer
@@ -19,6 +20,7 @@ class ComponentRenderer(ElementRenderer):
             "Carrousel": self._render_carousel,
             "Onglets": self._render_tabs,
             "Défilement": self._render_scrollspy,
+            "Consignes": self._render_consignes,
         }
 
     def render(self, element: Dict[str, Any], indent_level: int = 0) -> List[str]:
@@ -35,14 +37,67 @@ class ComponentRenderer(ElementRenderer):
         # Si c'est un composant complet avec un type défini
         if element["type"] == "component" and "component_type" in element:
             component_type = element["component_type"]
-            renderer = self.component_renderers.get(component_type)
+
+            # Si le type contient des espaces, extraire juste le type de base
+            base_component_type = (
+                component_type.split()[0] if " " in component_type else component_type
+            )
+
+            renderer = self.component_renderers.get(base_component_type)
 
             if renderer:
+                # Afficher des informations de débogage
+                if base_component_type == "Vidéo" and "video_id" in element:
+                    print(
+                        f"DEBUG - Rendu de composant vidéo avec ID: {element['video_id']}"
+                    )
+
+                if base_component_type == "Consignes":
+                    print(f"DEBUG - Rendu de composant Consignes")
+
                 return renderer(element, indent_level)
 
         # Si c'est un marqueur de début de composant
         elif element["type"] == "component_marker" and "component_type" in element:
-            # Pour les marqueurs seuls, on ne rend rien (ils seront traités par process_instructions)
+            component_type = element.get("component_type")
+
+            # Cas spécial pour les Consignes
+            if component_type == "Consignes":
+                print("DEBUG - Traitement marqueur de début de Consignes")
+
+                # Simuler un composant Consignes complet
+                consignes_component = {
+                    "type": "component",
+                    "component_type": "Consignes",
+                    "content": [],
+                }
+
+                # Chercher dans le JSON complet le contenu du composant Consignes
+                # en parcourant les éléments après ce marqueur jusqu'au marqueur de fin
+                doc_content = self.html_generator._json_data.get("content", [])
+
+                # Trouver notre position dans le contenu
+                for i, content_item in enumerate(doc_content):
+                    if (
+                        content_item["type"] == "component_marker"
+                        and content_item.get("component_type") == "Consignes"
+                    ):
+                        # Collecter tous les éléments jusqu'au marqueur de fin
+                        for j in range(i + 1, len(doc_content)):
+                            if (
+                                doc_content[j]["type"] == "component_end"
+                                and doc_content[j].get("component_type") == "Consignes"
+                            ):
+                                break
+                            consignes_component["content"].append(doc_content[j])
+                        break
+
+                # Utiliser le renderer de Consignes pour ce composant
+                renderer = self.component_renderers.get("Consignes")
+                if renderer and consignes_component["content"]:
+                    return renderer(consignes_component, indent_level)
+
+            # Pour les autres marqueurs seuls, on ne rend rien (ils seront traités par process_instructions)
             return []
 
         # Si c'est un marqueur de fin de composant
@@ -57,28 +112,46 @@ class ComponentRenderer(ElementRenderer):
         self, element: Dict[str, Any], indent_level: int = 0
     ) -> List[str]:
         """
-        Renders a Vimeo video component as an iframe.
+        Rend un composant Vidéo en HTML (lecteur Vimeo).
 
         Args:
-            element: The video component element
-            indent_level: Indentation level
+            element: Données du composant
+            indent_level: Niveau d'indentation
 
         Returns:
-            List of HTML lines for the video player
+            Liste de lignes HTML pour le lecteur vidéo
         """
-        # Get video ID from component attributes, default to a sample video if not specified
-        video_id = "1069341210"  # Default value
-
-        # Try to get the video ID from various sources
-        if "attributes" in element and isinstance(element["attributes"], dict):
-            video_id = element["attributes"].get("video_id", video_id)
-        else:
-            # Try direct attribute access
-            video_id = element.get("video_id", video_id)
-
         indent = " " * indent_level
 
-        # Construct HTML output
+        # Déterminer l'ID de la vidéo (valeur par défaut si non spécifiée)
+        video_id = "1069341210"  # Vidéo par défaut
+
+        # Essayer différentes façons d'accéder à l'ID de la vidéo
+        # 1. D'abord vérifier dans les attributs directs du composant
+        if "video_id" in element:
+            video_id = element["video_id"]
+            print(f"DEBUG - Trouvé video_id dans element: {video_id}")
+
+        # 2. Ensuite vérifier dans les attributs personnalisés
+        elif "attributes" in element and isinstance(element["attributes"], dict):
+            attributes = element["attributes"]
+            if "video_id" in attributes:
+                video_id = attributes["video_id"]
+                print(f"DEBUG - Trouvé video_id dans attributes: {video_id}")
+
+        # 3. Vérifier si le type du composant contient un ID (pour la rétrocompatibilité)
+        elif "component_type" in element and " " in element["component_type"]:
+            # Extraire l'ID de la vidéo du type de composant
+            component_type = element["component_type"]
+            if "video_id=" in component_type:
+                # Pattern pour extraire les attributs au format key='value' ou key="value"
+                attr_pattern = r'video_id=(["\'])(.*?)\1'
+                match = re.search(attr_pattern, component_type)
+                if match:
+                    video_id = match.group(2)
+                    print(f"DEBUG - Extrait video_id du type de composant: {video_id}")
+
+        # Construire la sortie HTML
         return [
             f'{indent}<section class="video-component">',
             f'{indent}  <div class="video-container">',
@@ -690,6 +763,48 @@ class ComponentRenderer(ElementRenderer):
         if not has_content:
             return []
 
+        element_html.append(f"{indent}  </div>")
+        element_html.append(f"{indent}</section>")
+        return element_html
+
+    def _render_consignes(
+        self, element: Dict[str, Any], indent_level: int
+    ) -> List[str]:
+        """
+        Rend un composant Consignes en HTML.
+
+        Args:
+            element: Données du composant
+            indent_level: Niveau d'indentation
+
+        Returns:
+            Liste de lignes HTML
+        """
+        indent = " " * indent_level
+        element_html = [
+            f'{indent}<section class="consignes-component">',
+            f'{indent}  <div class="card my-4 border-0 shadow-sm">',
+            f'{indent}    <div class="card-body consignes" style="background-color: #fffde7; border-left: 4px solid #fb8c00; font-style: italic; padding: 1rem;">',
+        ]
+
+        has_content = False
+        # S'assurer que l'élément a du contenu
+        if "content" in element and element["content"]:
+            for content_elem in element["content"]:
+                # Générer le HTML pour l'élément de contenu
+                content_html = self.html_generator._generate_element_html(
+                    content_elem, indent_level=indent_level + 6
+                )
+
+                # S'assurer que le contenu est une liste de chaînes
+                if content_html and isinstance(content_html, list):
+                    has_content = True
+                    # N'ajouter que les éléments valides
+                    for item in content_html:
+                        if isinstance(item, str):
+                            element_html.append(item)
+
+        element_html.append(f"{indent}    </div>")
         element_html.append(f"{indent}  </div>")
         element_html.append(f"{indent}</section>")
         return element_html

@@ -149,7 +149,7 @@ def filter_comments_from_paragraph(
     return filtered_paragraph
 
 
-def filter_comments_from_content(content: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def filter_comments_from_content(content: List[Any]) -> List[Any]:
     """
     Filtre les commentaires de tout le contenu du document.
 
@@ -164,27 +164,66 @@ def filter_comments_from_content(content: List[Dict[str, Any]]) -> List[Dict[str
     filtered_content = []
 
     for item in content:
+        # Vérifier si l'élément est un dictionnaire ou un objet
+        if isinstance(item, dict):
+            item_type = item.get("type", "")
+        else:
+            # Si c'est un objet, utiliser l'attribut type
+            item_type = getattr(item, "type", "")
+
         # Traiter les paragraphes
-        if item["type"] == "paragraph":
-            filtered_item = filter_comments_from_paragraph(item)
-            if filtered_item:
-                filtered_content.append(filtered_item)
+        if item_type == "paragraph":
+            if isinstance(item, dict):
+                filtered_item = filter_comments_from_paragraph(item)
+                if filtered_item:
+                    filtered_content.append(filtered_item)
+            else:
+                # Si c'est un objet, l'ajouter directement pour l'instant
+                # (le filtrage des objets sera implémenté ultérieurement)
+                filtered_content.append(item)
 
         # Traiter les composants (récursivement)
-        elif item["type"] == "component" and "content" in item:
-            filtered_component_content = filter_comments_from_content(item["content"])
-            if filtered_component_content:
-                filtered_item = item.copy()
-                filtered_item["content"] = filtered_component_content
-                filtered_content.append(filtered_item)
+        elif item_type == "component":
+            content_to_filter = None
+            if isinstance(item, dict) and "content" in item:
+                content_to_filter = item["content"]
+            elif hasattr(item, "content") and item.content:
+                content_to_filter = item.content
+
+            if content_to_filter:
+                filtered_component_content = filter_comments_from_content(
+                    content_to_filter
+                )
+
+                if filtered_component_content:
+                    if isinstance(item, dict):
+                        filtered_item = item.copy()
+                        filtered_item["content"] = filtered_component_content
+                    else:
+                        # Pour les objets, nous ne faisons pas encore de filtrage
+                        # Cela nécessiterait d'implémenter une méthode de copie
+                        filtered_item = item
+                    filtered_content.append(filtered_item)
 
         # Traiter les blocs (récursivement)
-        elif item["type"] == "block" and "content" in item:
-            filtered_block_content = filter_comments_from_content(item["content"])
-            if filtered_block_content:
-                filtered_item = item.copy()
-                filtered_item["content"] = filtered_block_content
-                filtered_content.append(filtered_item)
+        elif item_type == "block":
+            content_to_filter = None
+            if isinstance(item, dict) and "content" in item:
+                content_to_filter = item["content"]
+            elif hasattr(item, "content") and item.content:
+                content_to_filter = item.content
+
+            if content_to_filter:
+                filtered_block_content = filter_comments_from_content(content_to_filter)
+
+                if filtered_block_content:
+                    if isinstance(item, dict):
+                        filtered_item = item.copy()
+                        filtered_item["content"] = filtered_block_content
+                    else:
+                        # Pour les objets, nous ne faisons pas encore de filtrage
+                        filtered_item = item
+                    filtered_content.append(filtered_item)
 
         # Les autres éléments sont conservés tels quels
         else:
@@ -207,7 +246,23 @@ def filter_comments_from_json(json_data: Dict[str, Any]) -> Dict[str, Any]:
         return json_data
 
     filtered_json = json_data.copy()
-    filtered_json["content"] = filter_comments_from_content(json_data["content"])
+
+    # Vérifier si le contenu est une liste de dictionnaires ou une liste d'objets
+    if json_data["content"] and isinstance(json_data["content"][0], dict):
+        filtered_json["content"] = filter_comments_from_content(json_data["content"])
+    else:
+        # Si ce sont des objets, convertir d'abord en dict
+        dict_content = []
+        for item in json_data["content"]:
+            if hasattr(item, "to_dict"):
+                dict_content.append(item.to_dict())
+            else:
+                # Si l'objet n'a pas de méthode to_dict, l'ignorer pour l'instant
+                # Une solution plus complète serait nécessaire
+                dict_content.append({"type": getattr(item, "type", "unknown")})
+
+        filtered_content = filter_comments_from_content(dict_content)
+        filtered_json["content"] = filtered_content
 
     return filtered_json
 

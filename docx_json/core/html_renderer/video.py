@@ -36,7 +36,7 @@ class VideoRenderer(ElementRenderer):
 
         try:
             # Extraire le texte de l'élément selon son type
-            text = ""
+            text: str = ""
 
             # Si c'est un élément de type paragraph contenant du texte comme "[Vidéo video_id='...']"
             if isinstance(element, dict) and element.get("type") == "paragraph":
@@ -76,7 +76,7 @@ class VideoRenderer(ElementRenderer):
                             end_idx = text.find("'", start_idx_value)
                             if end_idx > start_idx_value:
                                 # Extraire le sous-texte
-                                video_id = text[start_idx_value:end_idx]
+                                video_id = str(text)[start_idx_value:end_idx]
                                 print(
                                     f"VideoRenderer: ID trouvé (quotes simples): '{video_id}'"
                                 )
@@ -89,7 +89,7 @@ class VideoRenderer(ElementRenderer):
                             end_idx = text.find('"', start_idx_value)
                             if end_idx > start_idx_value:
                                 # Extraire le sous-texte
-                                video_id = text[start_idx_value:end_idx]
+                                video_id = str(text)[start_idx_value:end_idx]
                                 print(
                                     f"VideoRenderer: ID trouvé (quotes doubles): '{video_id}'"
                                 )

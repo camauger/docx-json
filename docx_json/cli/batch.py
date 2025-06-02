@@ -46,16 +46,16 @@ def process_batch(
     output_dir: Optional[str] = None,
     prefix: Optional[str] = None,
     suffix: Optional[str] = None,
-    formats: Tuple[bool, bool, bool] = (True, True, False),
+    formats: Tuple[bool, bool, bool] = (True, False, False),
     save_images: bool = True,
     css_path: Optional[str] = None,
-    generate_css: bool = False,
-    css_styles: Optional[str] = None,
     skip_existing: bool = False,
     force: bool = False,
     recursive: bool = False,
     quiet: bool = False,
     multipage: bool = False,
+    generate_css: bool = False,
+    css_styles: Optional[str] = None,
     verbose: bool = False,
     filter_comments: bool = True,
 ) -> Tuple[int, int]:
@@ -70,13 +70,13 @@ def process_batch(
         formats: Formats à générer (json, html, markdown)
         save_images: Si True, sauvegarde les images extraites
         css_path: Chemin vers un fichier CSS personnalisé
-        generate_css: Si True, génère un fichier CSS personnalisé
-        css_styles: Styles CSS personnalisés
         skip_existing: Ignore les fichiers déjà convertis
         force: Force la reconversion même si les fichiers existent
         recursive: Si True, parcourt aussi les sous-dossiers
         quiet: Mode silencieux
         multipage: Si True, génère plusieurs fichiers HTML aux sauts de page
+        generate_css: Si True, génère un fichier CSS personnalisé
+        css_styles: Styles CSS personnalisés
         verbose: Mode détaillé
         filter_comments: Si True, filtre les commentaires délimités par ###
 
@@ -108,6 +108,18 @@ def process_batch(
     success_count = 0
     with tqdm(total=len(docx_files), disable=quiet) as progress_bar:
         for docx_file in docx_files:
+            # Déterminer le css_path spécifique pour ce fichier si generate_css est activé
+            file_css_path = css_path
+            if generate_css and not file_css_path:
+                # Générer un nom de fichier CSS basé sur le fichier DOCX en cours
+                docx_base_name = os.path.splitext(os.path.basename(docx_file))[0]
+                file_dir = os.path.dirname(docx_file) if not output_dir else output_dir
+                file_css_path = os.path.join(file_dir, f"{docx_base_name}.css")
+                if not quiet and verbose:
+                    print(
+                        f"Le CSS généré '{file_css_path}' sera utilisé pour le HTML de '{docx_file}'"
+                    )
+
             if convert_file(
                 docx_file,
                 output_dir=output_dir,
@@ -115,13 +127,13 @@ def process_batch(
                 suffix=suffix,
                 formats=formats,
                 save_images=save_images,
-                css_path=css_path,
-                generate_css=generate_css,
-                css_styles=css_styles,
+                css_path=file_css_path,  # Utiliser le CSS path spécifique à ce fichier
                 skip_existing=skip_existing,
                 force=force,
-                quiet=True,  # Mode silencieux pour les fichiers individuels
+                quiet=quiet,
                 multipage=multipage,
+                generate_css=generate_css,
+                css_styles=css_styles,
                 verbose=verbose,
                 filter_comments=filter_comments,
             ):
