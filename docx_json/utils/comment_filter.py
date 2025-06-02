@@ -185,9 +185,9 @@ def filter_comments_from_content(content: List[Any]) -> List[Any]:
         # Traiter les composants (récursivement)
         elif item_type == "component":
             content_to_filter = None
-            if isinstance(item, dict) and "content" in item:
-                content_to_filter = item["content"]
-            elif hasattr(item, "content") and item.content:
+            if isinstance(item, dict):
+                content_to_filter = item.get("content")
+            elif not isinstance(item, dict) and hasattr(item, "content"):
                 content_to_filter = item.content
 
             if content_to_filter:
@@ -208,9 +208,9 @@ def filter_comments_from_content(content: List[Any]) -> List[Any]:
         # Traiter les blocs (récursivement)
         elif item_type == "block":
             content_to_filter = None
-            if isinstance(item, dict) and "content" in item:
-                content_to_filter = item["content"]
-            elif hasattr(item, "content") and item.content:
+            if isinstance(item, dict):
+                content_to_filter = item.get("content")
+            elif not isinstance(item, dict) and hasattr(item, "content"):
                 content_to_filter = item.content
 
             if content_to_filter:

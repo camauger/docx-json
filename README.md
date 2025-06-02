@@ -39,7 +39,12 @@ ainsi que des **composants pédagogiques** comme les vidéos, les accordéons, e
 2. Installez le package en mode développement:
 
 ```bash
+# Installation simple
+make install
+
+# OU installation manuelle
 pip install -e .
+pip install python-docx pandoc
 ```
 
 ### Option 2: Installation simple
@@ -56,7 +61,45 @@ pip install python-docx pandoc
 
 ## 🛠️ Utilisation
 
-### Commande de base
+### Commandes Makefile
+
+Le projet inclut un Makefile pour simplifier les opérations courantes :
+
+```bash
+# Installation des dépendances
+make install
+
+# Nettoyage des fichiers générés
+make clean
+
+# Exécution des tests
+make test
+
+# Conversion d'un fichier
+make convert file=document.docx
+
+# Conversion vers tous les formats
+make convert-all file=document.docx
+
+# Conversion d'un dossier
+make convert-dir dir=dossier/
+
+# Conversion avec gestion des images
+make convert-images file=document.docx
+
+# Conversion avec sortie personnalisée
+make convert-output file=document.docx output=output/
+
+# Mode debug
+make convert-debug file=document.docx
+
+# Afficher l'aide
+make help
+```
+
+### Commandes directes
+
+Vous pouvez également utiliser les commandes directement :
 
 ```bash
 # Si installé comme package
@@ -258,20 +301,39 @@ Résultat HTML :
 
 ```
 docx-json/
-├── docx_json/           # Module principal
-│   ├── __init__.py      # Exportation des classes publiques
-│   ├── __main__.py      # Point d'entrée CLI
-│   ├── core/            # Fonctionnalités principales
-│   │   ├── __init__.py
-│   │   └── converter.py # Classes de conversion
-│   └── models/          # Modèles de données
-│       ├── __init__.py
-│       └── elements.py  # Classes des éléments du document
-├── run_docx_converter.py # Script de lancement
-├── pyproject.toml       # Configuration du package
-├── COMMANDES.md         # Guide des commandes CLI
-└── README.md            # Documentation
+├── docx_json/          # Code principal du projet
+├── tests/             # Tests unitaires
+├── examples/          # Exemples et fichiers de test
+├── scripts/           # Scripts utilitaires
+├── images/            # Ressources images
+├── test_templates/    # Templates de test
+├── pyproject.toml     # Configuration du projet
+├── requirements.txt   # Dépendances
+├── README.md         # Documentation principale
+├── INSTRUCTIONS.md   # Instructions d'utilisation
+└── COMMANDES.md      # Documentation des commandes
 ```
+
+### Dossiers principaux
+
+- `docx_json/` : Contient le code source principal du projet
+- `tests/` : Contient les tests unitaires et les fichiers de test
+- `examples/` : Contient les exemples et fichiers de test pour la documentation
+- `scripts/` : Contient les scripts utilitaires pour diverses tâches
+- `images/` : Contient les ressources images utilisées dans le projet
+- `test_templates/` : Contient les templates utilisés pour les tests
+
+### Fichiers de configuration
+
+- `pyproject.toml` : Configuration du projet Python
+- `requirements.txt` : Liste des dépendances Python
+- `.gitignore` : Configuration Git pour ignorer les fichiers non pertinents
+
+### Documentation
+
+- `README.md` : Documentation principale du projet
+- `INSTRUCTIONS.md` : Instructions détaillées d'utilisation
+- `COMMANDES.md` : Documentation des commandes disponibles
 
 ---
 

@@ -1,4 +1,5 @@
 # Configuration IDE
+.cursor/
 .cursor/rules/
 
 # Byte-compiled / optimized / DLL files
@@ -71,7 +72,6 @@ venv.bak/
 *.docx
 !exemple_blocs_moodle.docx
 images/
-
 
 # Jupyter Notebook
 .ipynb_checkpoints

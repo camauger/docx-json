@@ -11,7 +11,7 @@ import os
 import re
 from typing import Any, Dict, List, Optional, Union
 
-from docx_json.models import Component, Block
+from docx_json.models import Block, Component
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,9 @@ class HTMLGenerator:
             "video": 0,
         }
 
-    def generate(self, css_path: Optional[str] = None, custom_css: Optional[str] = None) -> str:
+    def generate(
+        self, css_path: Optional[str] = None, custom_css: Optional[str] = None
+    ) -> str:
         """
         Génère le HTML complet du document.
 
@@ -62,8 +64,10 @@ class HTMLGenerator:
                 html_parts.append(self.render_element(element))
             except Exception as e:
                 logger.error(f"Erreur de rendu HTML: {str(e)}")
-                html_parts.append(f'<!-- Erreur lors du rendu : {str(e)} -->')
-                html_parts.append('<div class="rendering-error">(Erreur de rendu)</div>')
+                html_parts.append(f"<!-- Erreur lors du rendu : {str(e)} -->")
+                html_parts.append(
+                    '<div class="rendering-error">(Erreur de rendu)</div>'
+                )
 
         html_parts.append(self.generate_html_footer())
         return "\n".join(html_parts)
@@ -88,12 +92,12 @@ class HTMLGenerator:
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <style>
     {self.custom_css or ""}
-    @media print {
-      .page-break {
+    @media print {{
+      .page-break {{
         page-break-after: always;
         break-after: page;
-      }
-    }
+      }}
+    }}
   </style>
 </head>
 <body>
@@ -191,6 +195,114 @@ class HTMLGenerator:
             return element.get("content", "")
 
         # Type inconnu
-        return f'<!-- Élément inconnu: {element_type} -->'
+        return f"<!-- Élément inconnu: {element_type} -->"
 
-    # Les autres méthodes de rendu restent inchangées...
+    def render_paragraph(self, element: Dict[str, Any]) -> str:
+        """Rend un paragraphe en HTML."""
+        content = element.get("content", "")
+        style = element.get("style", {})
+        classes = ["mb-3"]
+
+        if style.get("alignment"):
+            classes.append(f"text-{style['alignment']}")
+
+        return f'<p class="{" ".join(classes)}">{content}</p>'
+
+    def render_heading(self, element: Dict[str, Any]) -> str:
+        """Rend un titre en HTML."""
+        level = element.get("level", 1)
+        content = element.get("content", "")
+        return f'<h{level} class="mb-4">{content}</h{level}>'
+
+    def render_component(self, element: Dict[str, Any]) -> str:
+        """Rend un composant en HTML."""
+        component_type = element.get("component_type", "")
+        self.component_counters[component_type] = (
+            self.component_counters.get(component_type, 0) + 1
+        )
+        content = element.get("content", "")
+
+        if component_type == "accordion":
+            return f'<div class="accordion mb-4" id="accordion{self.component_counters[component_type]}">{content}</div>'
+        elif component_type == "carousel":
+            return f'<div class="carousel slide mb-4" id="carousel{self.component_counters[component_type]}">{content}</div>'
+        elif component_type == "tabs":
+            return f'<ul class="nav nav-tabs mb-4" id="tabs{self.component_counters[component_type]}">{content}</ul>'
+        elif component_type == "audio":
+            return f'<audio controls class="mb-4">{content}</audio>'
+        elif component_type == "video":
+            return f'<video controls class="mb-4">{content}</video>'
+
+        return f"<!-- Composant inconnu: {component_type} -->"
+
+    def render_block(self, element: Dict[str, Any]) -> str:
+        """Rend un bloc en HTML."""
+        block_type = element.get("block_type", "")
+        content = element.get("content", "")
+
+        if block_type == "quote":
+            return f'<blockquote class="blockquote mb-4">{content}</blockquote>'
+        elif block_type == "code":
+            return f'<pre class="bg-light p-3 mb-4"><code>{content}</code></pre>'
+        elif block_type == "alert":
+            alert_type = element.get("alert_type", "info")
+            return f'<div class="alert alert-{alert_type} mb-4">{content}</div>'
+
+        return f"<!-- Bloc inconnu: {block_type} -->"
+
+    def render_table(self, element: Dict[str, Any]) -> str:
+        """Rend un tableau en HTML."""
+        headers = element.get("headers", [])
+        rows = element.get("rows", [])
+
+        html = [
+            '<div class="table-responsive mb-4">',
+            '<table class="table table-bordered">',
+        ]
+
+        if headers:
+            html.append("<thead><tr>")
+            for header in headers:
+                html.append(f"<th>{header}</th>")
+            html.append("</tr></thead>")
+
+        html.append("<tbody>")
+        for row in rows:
+            html.append("<tr>")
+            for cell in row:
+                html.append(f"<td>{cell}</td>")
+            html.append("</tr>")
+        html.append("</tbody>")
+
+        html.append("</table></div>")
+        return "\n".join(html)
+
+    def render_list(self, element: Dict[str, Any]) -> str:
+        """Rend une liste en HTML."""
+        items = element.get("items", [])
+        list_type = element.get("list_type", "unordered")
+
+        if list_type == "ordered":
+            html = ['<ol class="mb-4">']
+        else:
+            html = ['<ul class="mb-4">']
+
+        for item in items:
+            html.append(f"<li>{item}</li>")
+
+        html.append("</ol>" if list_type == "ordered" else "</ul>")
+        return "\n".join(html)
+
+    def render_image(self, element: Dict[str, Any]) -> str:
+        """Rend une image en HTML."""
+        src = element.get("src", "")
+        alt = element.get("alt", "")
+        caption = element.get("caption", "")
+
+        html = ['<figure class="mb-4">']
+        html.append(f'<img src="{src}" alt="{alt}" class="img-fluid">')
+        if caption:
+            html.append(f'<figcaption class="text-center mt-2">{caption}</figcaption>')
+        html.append("</figure>")
+
+        return "\n".join(html)
