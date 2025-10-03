@@ -337,9 +337,26 @@ docx-json/
 
 ---
 
+## 📋 Code Review & Improvements
+
+**Version 1.0.1** includes critical security fixes and improvements. See complete documentation:
+
+- 📊 **[Code Review Documentation](docs/code-review/README.md)** - Complete code review results
+- 🔒 **Security:** Critical vulnerability fixed (CRIT-001)
+- 🧪 **Testing:** Coverage improved from 22% to 37% (+171 new tests)
+- 🔍 **Type Checking:** Mypy configured and operational
+
+**Quick Links:**
+- [Quick Reference](docs/code-review/README_CODE_REVIEW.md)
+- [Security Fix Details](docs/code-review/SECURITY_FIX_SUMMARY.md)
+- [Test Coverage Report](docs/code-review/FINAL_COVERAGE_REPORT.md)
+- [Complete Summary](docs/code-review/COMPLETE_SESSION_SUMMARY.md)
+
+---
+
 ## ✨ Pour aller plus loin (roadmap)
 
-- [ ] Ajout d'un mode Markdown (`--md`)
+- [x] Ajout d'un mode Markdown (`--md`)
 - [ ] Support des styles personnalisés (couleurs, tailles, etc.)
 - [ ] Interface web glisser-déposer (Flask ou FastAPI)
 - [ ] Support des tableaux imbriqués et mises en page avancées

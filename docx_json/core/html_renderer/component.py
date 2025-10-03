@@ -2,10 +2,13 @@
 Module contenant le renderer pour les composants interactifs.
 """
 
+import logging
 import re
 from typing import Any, Dict, List
 
 from .base import ElementRenderer
+
+logger = logging.getLogger(__name__)
 
 
 class ComponentRenderer(ElementRenderer):
@@ -48,12 +51,12 @@ class ComponentRenderer(ElementRenderer):
             if renderer:
                 # Afficher des informations de débogage
                 if base_component_type == "Vidéo" and "video_id" in element:
-                    print(
-                        f"DEBUG - Rendu de composant vidéo avec ID: {element['video_id']}"
+                    logger.debug(
+                        "Rendu de composant vidéo avec ID: %s", element["video_id"]
                     )
 
                 if base_component_type == "Consignes":
-                    print(f"DEBUG - Rendu de composant Consignes")
+                    logger.debug("Rendu de composant Consignes")
 
                 return renderer(element, indent_level)
 
@@ -63,7 +66,7 @@ class ComponentRenderer(ElementRenderer):
 
             # Cas spécial pour les Consignes
             if component_type == "Consignes":
-                print("DEBUG - Traitement marqueur de début de Consignes")
+                logger.debug("Traitement marqueur de début de Consignes")
 
                 # Simuler un composant Consignes complet
                 consignes_component = {
@@ -130,14 +133,14 @@ class ComponentRenderer(ElementRenderer):
         # 1. D'abord vérifier dans les attributs directs du composant
         if "video_id" in element:
             video_id = element["video_id"]
-            print(f"DEBUG - Trouvé video_id dans element: {video_id}")
+            logger.debug("Trouvé video_id dans element: %s", video_id)
 
         # 2. Ensuite vérifier dans les attributs personnalisés
         elif "attributes" in element and isinstance(element["attributes"], dict):
             attributes = element["attributes"]
             if "video_id" in attributes:
                 video_id = attributes["video_id"]
-                print(f"DEBUG - Trouvé video_id dans attributes: {video_id}")
+                logger.debug("Trouvé video_id dans attributes: %s", video_id)
 
         # 3. Vérifier si le type du composant contient un ID (pour la rétrocompatibilité)
         elif "component_type" in element and " " in element["component_type"]:
@@ -149,7 +152,7 @@ class ComponentRenderer(ElementRenderer):
                 match = re.search(attr_pattern, component_type)
                 if match:
                     video_id = match.group(2)
-                    print(f"DEBUG - Extrait video_id du type de composant: {video_id}")
+                    logger.debug("Extrait video_id du type de composant: %s", video_id)
 
         # Construire la sortie HTML
         return [
@@ -444,7 +447,7 @@ class ComponentRenderer(ElementRenderer):
         indent = " " * indent_level
         carousel_id = element.get("html_id", "mainCarousel")
 
-        print(f"DEBUG - Rendu du carrousel: {carousel_id}")
+        logger.debug("Rendu du carrousel: %s", carousel_id)
 
         # Ajouter des styles CSS pour améliorer l'apparence du carousel
         element_html = [
@@ -485,7 +488,7 @@ class ComponentRenderer(ElementRenderer):
 
             # Parcourir les éléments pour extraire les slides
             for content_elem in element["content"]:
-                print(f"DEBUG - Élément carousel: {content_elem.get('type')}")
+                logger.debug("Élément carousel: %s", content_elem.get("type"))
 
                 if content_elem["type"] == "heading":
                     # Si on a déjà un titre pour cette diapositive, c'est une nouvelle diapositive
@@ -505,27 +508,29 @@ class ComponentRenderer(ElementRenderer):
                     # Vérifier si le titre contient une image
                     if "image" in content_elem:
                         current_slide_image = content_elem["image"].get("path", "")
-                        print(
-                            f"DEBUG - Image trouvée dans heading (image): {current_slide_image}"
+                        logger.debug(
+                            "Image trouvée dans heading (image): %s",
+                            current_slide_image,
                         )
                     elif "images" in content_elem and content_elem["images"]:
                         current_slide_image = content_elem["images"][0].get("path", "")
-                        print(
-                            f"DEBUG - Image trouvée dans heading (images): {current_slide_image}"
+                        logger.debug(
+                            "Image trouvée dans heading (images): %s",
+                            current_slide_image,
                         )
 
                 elif content_elem["type"] == "image":
                     # Stocker l'image pour cette diapositive
                     current_slide_image = content_elem.get("image_path", "")
-                    print(f"DEBUG - Image trouvée (type=image): {current_slide_image}")
+                    logger.debug("Image trouvée (type=image): %s", current_slide_image)
                 elif "image" in content_elem:
                     # Si l'élément a une image directement
                     current_slide_image = content_elem["image"].get("path", "")
-                    print(f"DEBUG - Image trouvée (attr image): {current_slide_image}")
+                    logger.debug("Image trouvée (attr image): %s", current_slide_image)
                 elif "images" in content_elem and content_elem["images"]:
                     # Si l'élément a des images
                     current_slide_image = content_elem["images"][0].get("path", "")
-                    print(f"DEBUG - Image trouvée (attr images): {current_slide_image}")
+                    logger.debug("Image trouvée (attr images): %s", current_slide_image)
                 elif content_elem["type"] == "paragraph":
                     # Générer le HTML pour le paragraphe
                     content_html = self.html_generator._generate_element_html(
@@ -539,15 +544,17 @@ class ComponentRenderer(ElementRenderer):
                         # Vérifier toutes les façons possibles d'avoir une image
                         if "image" in content_elem:
                             current_slide_image = content_elem["image"].get("path", "")
-                            print(
-                                f"DEBUG - Image trouvée dans paragraphe (image): {current_slide_image}"
+                            logger.debug(
+                                "Image trouvée dans paragraphe (image): %s",
+                                current_slide_image,
                             )
                         elif "images" in content_elem and content_elem["images"]:
                             current_slide_image = content_elem["images"][0].get(
                                 "path", ""
                             )
-                            print(
-                                f"DEBUG - Image trouvée dans paragraphe (images): {current_slide_image}"
+                            logger.debug(
+                                "Image trouvée dans paragraphe (images): %s",
+                                current_slide_image,
                             )
                         elif (
                             "attributes" in content_elem
@@ -557,8 +564,9 @@ class ComponentRenderer(ElementRenderer):
                             images = content_elem["attributes"]["images"]
                             if images and len(images) > 0:
                                 current_slide_image = images[0].get("path", "")
-                                print(
-                                    f"DEBUG - Image trouvée dans attributs: {current_slide_image}"
+                                logger.debug(
+                                    "Image trouvée dans attributs: %s",
+                                    current_slide_image,
                                 )
 
                         # Vérifier dans les runs s'ils contiennent des images
@@ -566,8 +574,9 @@ class ComponentRenderer(ElementRenderer):
                             for run in content_elem["runs"]:
                                 if "image" in run:
                                     current_slide_image = run["image"].get("path", "")
-                                    print(
-                                        f"DEBUG - Image trouvée dans run: {current_slide_image}"
+                                    logger.debug(
+                                        "Image trouvée dans run: %s",
+                                        current_slide_image,
                                     )
                                     break
                 else:
@@ -586,7 +595,7 @@ class ComponentRenderer(ElementRenderer):
 
         # Génération des images depuis le document
         if not slide_images or all(img is None or img == "" for img in slide_images):
-            print(f"DEBUG - Aucune image n'a été trouvée pour ce carrousel")
+            logger.debug("Aucune image n'a été trouvée pour ce carrousel")
 
         # Générer les indicateurs de diapositive
         element_html.append(f'{indent}  <div class="carousel-indicators">')
@@ -617,7 +626,7 @@ class ComponentRenderer(ElementRenderer):
 
             # Ajouter l'image si elle existe
             if image:
-                print(f"DEBUG - Ajout de l'image {image} à la diapositive {i+1}")
+                logger.debug("Ajout de l'image %s à la diapositive %d", image, i + 1)
                 element_html.append(f'{indent}        <div class="text-center mt-3">')
                 element_html.append(
                     f'{indent}          <img src="{image}" class="img-fluid rounded" alt="{title}">'

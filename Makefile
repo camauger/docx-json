@@ -11,7 +11,7 @@ GREEN = \033[0;32m
 NC = \033[0m # No Color
 
 # Commandes principales
-.PHONY: install clean test convert convert-all convert-dir help
+.PHONY: install install-dev clean test test-cov lint format type-check security quality ci convert convert-all convert-dir help
 
 # Installation
 install:

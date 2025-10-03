@@ -36,5 +36,5 @@ from docx_json.models.elements import (
     TextRun,
 )
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __author__ = "Développeur TÉLUQ"
